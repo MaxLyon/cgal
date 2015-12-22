@@ -25,11 +25,13 @@
 ## Functions ##
 
 - `CGAL::read_off_points()`
+- `CGAL::read_ply_points()`
 - `CGAL::read_xyz_points()`
 - `CGAL::compute_average_spacing()`
 - `CGAL::remove_outliers()`
 - `CGAL::grid_simplify_point_set()`
 - `CGAL::random_simplify_point_set()`
+- `CGAL::hierarchy_simplify_point_set()`	
 - `CGAL::wlop_simplify_and_regularize_point_set()`
 - `CGAL::jet_smooth_point_set()`
 - `CGAL::bilateral_smooth_point_set()`
@@ -41,6 +43,7 @@
 - `CGAL::vcm_estimate_normals()`
 - `CGAL::vcm_is_on_feature_edge()`
 - `CGAL::write_off_points()`
+- `CGAL::write_ply_points()`
 - `CGAL::write_xyz_points()`
 */
 

@@ -53,6 +53,8 @@
     <addaction name="separator"/>
     <addaction name="actionLoad_Script"/>
     <addaction name="separator"/>
+    <addaction name="actionLoad_plugin"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
@@ -81,7 +83,6 @@
      <addaction name="separator"/>
      <addaction name="actionMinkowskiSum"/>
     </widget>
-
     <addaction name="actionEstimateCurvature"/>
     <addaction name="actionSelfIntersection"/>
     <addaction name="actionConvexHull"/>
@@ -174,6 +175,28 @@
           </widget>
          </item>
          <item>
+          <widget class="QToolButton" name="upButton">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="Polyhedron_3.qrc">
+             <normaloff>:/cgal/icons/resources/up.png</normaloff>:/cgal/icons/resources/up.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="downButton">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="Polyhedron_3.qrc">
+             <normaloff>:/cgal/icons/resources/down.png</normaloff>:/cgal/icons/resources/down.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
           <spacer name="horizontalSpacer">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -200,6 +223,9 @@
          <property name="editTriggers">
           <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
          </property>
+         <property name="dragDropMode">
+          <enum>QAbstractItemView::InternalMove</enum>
+         </property>
          <property name="alternatingRowColors">
           <bool>true</bool>
          </property>
@@ -207,7 +233,7 @@
           <enum>QAbstractItemView::ExtendedSelection</enum>
          </property>
          <property name="indentation">
-          <number>0</number>
+          <number>10</number>
          </property>
         </widget>
        </item>
@@ -631,6 +657,11 @@
   <action name="actionLSC">
    <property name="text">
     <string>Least square conformal maps</string>
+   </property>
+  </action>
+  <action name="actionLoad_plugin">
+   <property name="text">
+    <string>Load plugin</string>
    </property>
   </action>
  </widget>

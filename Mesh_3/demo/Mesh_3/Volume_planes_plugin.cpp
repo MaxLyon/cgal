@@ -1,14 +1,14 @@
-#include "config.h"
-#include <CGAL/config.h>
 
-#if defined(BOOST_MSVC)
-#  pragma warning(push)
-#  pragma warning(disable:4244 ) // conversion with loss of data
+#ifdef _MSC_VER
+#  pragma warning(disable:4244) // conversion with loss of data
 #endif
 
-#include <CGAL/Image_3.h>
+#include <CGAL/config.h>
+#include "config.h"
 
 #include "Volume_plane.h"
+#include <CGAL/Image_3.h>
+
 #include "Volume_plane_thread.h"
 #include "Volume_plane_intersection.h"
 

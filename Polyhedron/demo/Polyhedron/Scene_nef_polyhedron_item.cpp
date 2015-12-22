@@ -48,7 +48,7 @@ struct DPoint {
     GLdouble coords[3];
 };
 Scene_nef_polyhedron_item::Scene_nef_polyhedron_item()
-    : Scene_item(4,3),
+    : Scene_item(NbOfVbos,NbOfVaos),
       nef_poly(new Nef_polyhedron)
 {
     is_selected = true;
@@ -58,7 +58,7 @@ Scene_nef_polyhedron_item::Scene_nef_polyhedron_item()
 }
 
 Scene_nef_polyhedron_item::Scene_nef_polyhedron_item(Nef_polyhedron* const p)
-    : Scene_item(4,3),
+    : Scene_item(NbOfVbos,NbOfVaos),
       nef_poly(p)
 {
     is_selected = true;
@@ -68,7 +68,7 @@ Scene_nef_polyhedron_item::Scene_nef_polyhedron_item(Nef_polyhedron* const p)
 }
 
 Scene_nef_polyhedron_item::Scene_nef_polyhedron_item(const Nef_polyhedron& p)
-    : Scene_item(4,3),
+    : Scene_item(NbOfVbos,NbOfVaos),
       nef_poly(new Nef_polyhedron(p))
 {
      is_selected = true;
@@ -82,29 +82,29 @@ Scene_nef_polyhedron_item::~Scene_nef_polyhedron_item()
     delete nef_poly;
 }
 
-void Scene_nef_polyhedron_item::initialize_buffers(Viewer_interface *viewer) const
+void Scene_nef_polyhedron_item::initialize_buffers(CGAL::Three::Viewer_interface *viewer) const
 {
     //vao for the facets
     {
         program = getShaderProgram(PROGRAM_WITH_LIGHT, viewer);
         program->bind();
 
-        vaos[0]->bind();
-        buffers[0].bind();
-        buffers[0].allocate(positions_facets.data(),
+        vaos[Facets]->bind();
+        buffers[Facets_vertices].bind();
+        buffers[Facets_vertices].allocate(positions_facets.data(),
                             static_cast<int>(positions_facets.size()*sizeof(double)));
         program->enableAttributeArray("vertex");
         program->setAttributeBuffer("vertex",GL_DOUBLE,0,3);
-        buffers[0].release();
+        buffers[Facets_vertices].release();
 
 
 
-        buffers[1].bind();
-        buffers[1].allocate(normals.data(),
+        buffers[Facets_normals].bind();
+        buffers[Facets_normals].allocate(normals.data(),
                             static_cast<int>(normals.size()*sizeof(double)));
         program->enableAttributeArray("normals");
         program->setAttributeBuffer("normals",GL_DOUBLE,0,3);
-        buffers[1].release();
+        buffers[Facets_normals].release();
 
         nb_facets = positions_facets.size();
         positions_facets.resize(0);
@@ -121,19 +121,19 @@ void Scene_nef_polyhedron_item::initialize_buffers(Viewer_interface *viewer) con
         program = getShaderProgram(PROGRAM_WITHOUT_LIGHT, viewer);
         program->bind();
 
-        vaos[1]->bind();
-        buffers[2].bind();
-        buffers[2].allocate(positions_lines.data(),
+        vaos[Edges]->bind();
+        buffers[Edges_vertices].bind();
+        buffers[Edges_vertices].allocate(positions_lines.data(),
                             static_cast<int>(positions_lines.size()*sizeof(double)));
         program->enableAttributeArray("vertex");
         program->setAttributeBuffer("vertex",GL_DOUBLE,0,3);
-        buffers[2].release();
+        buffers[Edges_vertices].release();
 
 
         nb_lines = positions_lines.size();
         positions_lines.resize(0);
         std::vector<double>(positions_lines).swap(positions_lines);
-        vaos[1]->release();
+        vaos[Edges]->release();
         program->release();
     }
     //vao for the points
@@ -141,15 +141,15 @@ void Scene_nef_polyhedron_item::initialize_buffers(Viewer_interface *viewer) con
         program = getShaderProgram(PROGRAM_WITHOUT_LIGHT, viewer);
         program->bind();
 
-        vaos[2]->bind();
-        buffers[3].bind();
-        buffers[3].allocate(positions_points.data(),
+        vaos[Points]->bind();
+        buffers[Points_vertices].bind();
+        buffers[Points_vertices].allocate(positions_points.data(),
                             static_cast<int>(positions_points.size()*sizeof(double)));
         program->enableAttributeArray("vertex");
         program->setAttributeBuffer("vertex",GL_DOUBLE,0,3);
-        buffers[3].release();
+        buffers[Points_vertices].release();
 
-        vaos[2]->release();
+        vaos[Points]->release();
 
         nb_points = positions_points.size();
         positions_points.resize(0);
@@ -158,7 +158,7 @@ void Scene_nef_polyhedron_item::initialize_buffers(Viewer_interface *viewer) con
     }
     are_buffers_filled = true;
 }
-void Scene_nef_polyhedron_item::compute_normals_and_vertices(void)
+void Scene_nef_polyhedron_item::compute_normals_and_vertices(void) const
 {
      int count = 0;
     positions_facets.resize(0);
@@ -399,23 +399,22 @@ Scene_nef_polyhedron_item::toolTip() const
             .arg(nef_poly->number_of_volumes());
 }
 
-void Scene_nef_polyhedron_item::draw(Viewer_interface* viewer) const
+void Scene_nef_polyhedron_item::draw(CGAL::Three::Viewer_interface* viewer) const
 {
     if(!are_buffers_filled)
+    {
+        compute_normals_and_vertices();
         initialize_buffers(viewer);
-    vaos[0]->bind();
+    }
+    vaos[Facets]->bind();
 
     // tells the GPU to use the program just created
     program=getShaderProgram(PROGRAM_WITH_LIGHT);
     attrib_buffers(viewer,PROGRAM_WITH_LIGHT);
     program->bind();
-    if(is_selected)
-        program->setAttributeValue("colors", this->color().lighter(120));
-    else
-        program->setAttributeValue("colors", this->color());
     program->setUniformValue("is_two_side", 1);
     viewer->glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nb_facets/3));
-    vaos[0]->release();
+    vaos[Facets]->release();
     program->release();
     GLfloat point_size;
     viewer->glGetFloatv(GL_POINT_SIZE, &point_size);
@@ -425,21 +424,20 @@ void Scene_nef_polyhedron_item::draw(Viewer_interface* viewer) const
     viewer->glPointSize(point_size);
 
 }
-void Scene_nef_polyhedron_item::draw_edges(Viewer_interface* viewer) const
+void Scene_nef_polyhedron_item::draw_edges(CGAL::Three::Viewer_interface* viewer) const
 {
     if(!are_buffers_filled)
+    {
+        compute_normals_and_vertices();
         initialize_buffers(viewer);
+    }
 
-    vaos[1]->bind();
+    vaos[Edges]->bind();
     program = getShaderProgram(PROGRAM_WITHOUT_LIGHT);
     attrib_buffers(viewer ,PROGRAM_WITHOUT_LIGHT);
     program->bind();
-    if(is_selected)
-        program->setAttributeValue("colors", QColor(Qt::black));
-    else
-        program->setAttributeValue("colors", this->color());
     viewer->glDrawArrays(GL_LINES,0,static_cast<GLsizei>(nb_lines/3));
-    vaos[1]->release();
+    vaos[Edges]->release();
     program->release();
     if(renderingMode() == PointsPlusNormals)
     {
@@ -451,17 +449,20 @@ void Scene_nef_polyhedron_item::draw_edges(Viewer_interface* viewer) const
         viewer->glPointSize(point_size);
     }
 }
-void Scene_nef_polyhedron_item::draw_points(Viewer_interface* viewer) const
+void Scene_nef_polyhedron_item::draw_points(CGAL::Three::Viewer_interface* viewer) const
 {
     if(!are_buffers_filled)
+    {
+        compute_normals_and_vertices();
         initialize_buffers(viewer);
-    vaos[2]->bind();
+    }
+    vaos[Points]->bind();
     program=getShaderProgram(PROGRAM_WITHOUT_LIGHT);
     attrib_buffers(viewer ,PROGRAM_WITHOUT_LIGHT);
     program->bind();
     program->setAttributeValue("colors", this->color());
     viewer->glDrawArrays(GL_POINTS,0,static_cast<GLsizei>(nb_points/3));
-    vaos[2]->release();
+    vaos[Points]->release();
     program->release();
 
 }
@@ -477,17 +478,20 @@ Scene_nef_polyhedron_item::isEmpty() const {
     return (nef_poly == 0) || nef_poly->is_empty();
 }
 
-Scene_nef_polyhedron_item::Bbox
-Scene_nef_polyhedron_item::bbox() const {
+void
+Scene_nef_polyhedron_item::compute_bbox() const {
     if(isEmpty())
-        return Bbox();
+    {
+        _bbox = Bbox();
+        return;
+    }
     CGAL::Bbox_3 bbox(nef_poly->vertices_begin()->point().bbox());
     for(Nef_polyhedron::Vertex_const_iterator it = nef_poly->vertices_begin();
         it != nef_poly->vertices_end();
         ++it) {
         bbox = bbox + it->point().bbox();
     }
-    return Bbox(bbox.xmin(),bbox.ymin(),bbox.zmin(),
+    _bbox = Bbox(bbox.xmin(),bbox.ymin(),bbox.zmin(),
                 bbox.xmax(),bbox.ymax(),bbox.zmax());
 }
 
@@ -660,9 +664,8 @@ void
 Scene_nef_polyhedron_item::
 invalidate_buffers()
 {
-    //  init();
+    compute_bbox();
     Base::invalidate_buffers();
-    compute_normals_and_vertices();
     are_buffers_filled = false;
 }
 void

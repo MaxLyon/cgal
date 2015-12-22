@@ -1,31 +1,36 @@
 #include "Viewer.h"
 #include <CGAL/gl.h>
-#include "Scene_draw_interface.h"
+#include <CGAL/Three/Scene_draw_interface.h>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QGLViewer/manipulatedCameraFrame.h>
 #include <QDebug>
 #include <QOpenGLShader>
+#include <QOpenGLShaderProgram>
 #include <cmath>
+
 class Viewer_impl {
 public:
-  Scene_draw_interface* scene;
+  CGAL::Three::Scene_draw_interface* scene;
   bool antialiasing;
   bool twosides;
   bool macro_mode;
   bool inFastDrawing;
 
   void draw_aux(bool with_names, Viewer*);
-};
 
+  //! Contains all the programs for the item rendering.
+  mutable std::vector<QOpenGLShaderProgram*> shader_programs;
+};
 Viewer::Viewer(QWidget* parent, bool antialiasing)
-  : Viewer_interface(parent)
+  : CGAL::Three::Viewer_interface(parent)
 {
   d = new Viewer_impl;
   d->scene = 0;
   d->antialiasing = antialiasing;
   d->twosides = false;
   d->macro_mode = false;
+  d->shader_programs.resize(NB_OF_PROGRAMS);
   setShortcut(EXIT_VIEWER, 0);
   setShortcut(DRAW_AXIS, 0);
   setKeyDescription(Qt::Key_T,
@@ -67,7 +72,7 @@ Viewer::~Viewer()
   delete d;
 }
 
-void Viewer::setScene(Scene_draw_interface* scene)
+void Viewer::setScene(CGAL::Three::Scene_draw_interface* scene)
 {
   d->scene = scene;
 }
@@ -158,13 +163,9 @@ void Viewer::initializeGL()
       "   fP = mv_matrix * vertex; \n"
       "   fN = mat3(mv_matrix)* normal; \n"
       "   vec4 temp = vec4(mvp_matrix * vertex); \n"
-      "   vec4 ort = ortho_mat * vec4(width, height, 0,0); \n"
+      "   vec4 ort = ortho_mat * vec4(width-150, height-150, 0,0); \n"
       "   float ratio = width/height; \n"
-      "   if(ratio>=1) \n"
-      "     gl_Position = ort +  vec4(temp.x-ort.x/10, ratio*temp.y-ratio*ort.y/10, temp.z, 1.0); \n"
-      "   else \n"
-      "     gl_Position = ort +  vec4(temp.x-1/ratio*ort.x/10, width/height*temp.y-ort.y/10, temp.z, 1.0); \n"
-
+      "   gl_Position =  ort +vec4(temp.x, temp.y, temp.z, 1.0); \n"
       "} \n"
       "\n"
   };
@@ -291,7 +292,6 @@ void Viewer_impl::draw_aux(bool with_names, Viewer* viewer)
 {
   if(scene == 0)
     return;
-
   viewer->glLineWidth(1.0f);
   viewer->glPointSize(2.f);
   viewer->glEnable(GL_POLYGON_OFFSET_FILL);
@@ -348,7 +348,7 @@ void Viewer::postSelection(const QPoint& pixel)
                       dir.x, dir.y, dir.z);
   }
 }
-bool Viewer_interface::readFrame(QString s, qglviewer::Frame& frame)
+bool CGAL::Three::Viewer_interface::readFrame(QString s, qglviewer::Frame& frame)
 {
   QStringList list = s.split(" ", QString::SkipEmptyParts);
   if(list.size() != 7)
@@ -377,7 +377,7 @@ bool Viewer_interface::readFrame(QString s, qglviewer::Frame& frame)
   return true;
 }
 
-QString Viewer_interface::dumpFrame(const qglviewer::Frame& frame) {
+QString CGAL::Three::Viewer_interface::dumpFrame(const qglviewer::Frame& frame) {
   const qglviewer::Vec pos = frame.position();
   const qglviewer::Quaternion q = frame.orientation();
 
@@ -410,18 +410,114 @@ QString Viewer::dumpCameraCoordinates()
   }
 }
 
-/**
- * @brief Viewer::pickMatrix
- * Source code of gluPickMatrix slightly modified : instead of multiplying the current matrix by this value,
- * sets the viewer's pickMatrix_ so that the drawing area is only around the cursor. This is because since CGAL 4.7,
- * the drawing sustem changed to use shaders, and these need this value. pickMatrix_ is passed to the shaders in
- * Scene_item::attrib_buffers(Viewer_interface* viewer, int program_name).
- * @param x
- * @param y
- * @param width
- * @param height
- * @param viewport
- */
+void Viewer::attrib_buffers(int program_name) const {
+    GLint is_both_sides = 0;
+    //ModelViewMatrix used for the transformation of the camera.
+    QMatrix4x4 mvp_mat;
+    // ModelView Matrix used for the lighting system
+    QMatrix4x4 mv_mat;
+    // transformation of the manipulated frame
+    QMatrix4x4 f_mat;
+    // used for the picking. Is Identity except while selecting an item.
+    QMatrix4x4 pick_mat;
+    f_mat.setToIdentity();
+    //fills the MVP and MV matrices.
+    GLdouble d_mat[16];
+    this->camera()->getModelViewProjectionMatrix(d_mat);
+    //Convert the GLdoubles matrices in GLfloats
+    for (int i=0; i<16; ++i){
+        mvp_mat.data()[i] = GLfloat(d_mat[i]);
+    }
+    this->camera()->getModelViewMatrix(d_mat);
+    for (int i=0; i<16; ++i)
+        mv_mat.data()[i] = GLfloat(d_mat[i]);
+    for (int i=0; i<16; ++i)
+        pick_mat.data()[i] = this->pickMatrix_[i];
+
+    mvp_mat = pick_mat * mvp_mat;
+
+    const_cast<Viewer*>(this)->glGetIntegerv(GL_LIGHT_MODEL_TWO_SIDE,
+                                             &is_both_sides);
+
+    QVector4D position(0.0f,0.0f,1.0f, 1.0f );
+    QVector4D ambient(0.4f, 0.4f, 0.4f, 0.4f);
+    // Diffuse
+    QVector4D diffuse(1.0f, 1.0f, 1.0f, 1.0f);
+    // Specular
+    QVector4D specular(0.0f, 0.0f, 0.0f, 1.0f);
+    QOpenGLShaderProgram* program = getShaderProgram(program_name);
+    program->bind();
+    switch(program_name)
+    {
+    case PROGRAM_NO_SELECTION:
+        program->setUniformValue("mvp_matrix", mvp_mat);
+
+        program->setUniformValue("f_matrix",f_mat);
+        break;
+    case PROGRAM_WITH_LIGHT:
+        program->setUniformValue("mvp_matrix", mvp_mat);
+        program->setUniformValue("mv_matrix", mv_mat);
+        program->setUniformValue("light_pos", position);
+        program->setUniformValue("light_diff",diffuse);
+        program->setUniformValue("light_spec", specular);
+        program->setUniformValue("light_amb", ambient);
+        program->setUniformValue("spec_power", 51.8f);
+        program->setUniformValue("is_two_side", is_both_sides);
+        break;
+    case PROGRAM_WITHOUT_LIGHT:
+        program->setUniformValue("mvp_matrix", mvp_mat);
+        program->setUniformValue("mv_matrix", mv_mat);
+
+        program->setUniformValue("light_pos", position);
+        program->setUniformValue("light_diff", diffuse);
+        program->setUniformValue("light_spec", specular);
+        program->setUniformValue("light_amb", ambient);
+        program->setUniformValue("spec_power", 51.8f);
+        program->setUniformValue("is_two_side", is_both_sides);
+        program->setAttributeValue("normals", 0.0,0.0,0.0);
+        program->setUniformValue("f_matrix",f_mat);
+
+
+        break;
+    case PROGRAM_WITH_TEXTURE:
+
+        program->setUniformValue("mvp_matrix", mvp_mat);
+        program->setUniformValue("mv_matrix", mv_mat);
+        program->setUniformValue("light_pos", position);
+        program->setUniformValue("light_diff",diffuse);
+        program->setUniformValue("light_spec", specular);
+        program->setUniformValue("light_amb", ambient);
+        program->setUniformValue("spec_power", 51.8f);
+        program->setUniformValue("s_texture",0);
+        program->setUniformValue("f_matrix",f_mat);
+
+        break;
+    case PROGRAM_WITH_TEXTURED_EDGES:
+
+        program->setUniformValue("mvp_matrix", mvp_mat);
+        program->setUniformValue("s_texture",0);
+
+        break;
+    case PROGRAM_INSTANCED:
+
+        program->setUniformValue("mvp_matrix", mvp_mat);
+        program->setUniformValue("mv_matrix", mv_mat);
+
+        program->setUniformValue("light_pos", position);
+        program->setUniformValue("light_diff",diffuse);
+        program->setUniformValue("light_spec", specular);
+        program->setUniformValue("light_amb", ambient);
+        program->setUniformValue("spec_power", 51.8f);
+        program->setUniformValue("is_two_side", is_both_sides);
+
+        break;
+    case PROGRAM_INSTANCED_WIRE:
+        program->setUniformValue("mvp_matrix", mvp_mat);
+        break;
+    }
+    program->release();
+}
+
 
 void Viewer::pickMatrix(GLdouble x, GLdouble y, GLdouble width, GLdouble height,
 GLint viewport[4])
@@ -468,7 +564,7 @@ void Viewer::beginSelection(const QPoint &point)
 void Viewer::endSelection(const QPoint& point)
 {
   QGLViewer::endSelection(point);
-   //set dthe pick matrix to Identity
+   //set the pick matrix to Identity
     for(int i=0; i<16; i++)
         pickMatrix_[i]=0;
     pickMatrix_[0]=1;
@@ -477,7 +573,7 @@ void Viewer::endSelection(const QPoint& point)
     pickMatrix_[15]=1;
 }
 
-void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to, qglviewer::Vec color, AxisData &data)
+void Viewer::makeArrow(double R, int prec, qglviewer::Vec from, qglviewer::Vec to, qglviewer::Vec color, AxisData &data)
 {
     qglviewer::Vec temp = to-from;
     QVector3D dir = QVector3D(temp.x, temp.y, temp.z);
@@ -497,12 +593,13 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
     mat.rotate(angle, axis);
 
     //Head
+    const float Rf = static_cast<float>(R);
     for(int d = 0; d<360; d+= 360/prec)
     {
-        double D = d*M_PI/180.0;
-        double a =std::atan(R/0.33);
-        QVector4D p(0,1.0,0, 1.0);
-        QVector4D n(R*2.0*sin(D), sin(a), R*2.0*cos(D), 1.0);
+        float D = (float) (d * M_PI / 180.);
+        float a = (float) std::atan(Rf / 0.33);
+        QVector4D p(0., 1., 0, 1.);
+        QVector4D n(Rf*2.*sin(D), sin(a), Rf*2.*cos(D), 1.);
         QVector4D pR = mat*p;
         QVector4D nR = mat*n;
 
@@ -513,13 +610,13 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.normals->push_back(nR.x());
         data.normals->push_back(nR.y());
         data.normals->push_back(nR.z());
-        data.colors->push_back(color.x);
-        data.colors->push_back(color.y);
-        data.colors->push_back(color.z);
+        data.colors->push_back((float)color.x);
+        data.colors->push_back((float)color.y);
+        data.colors->push_back((float)color.z);
 
         //point B1
-        p = QVector4D(R*2.0* sin(D),0.66,R *2.0* cos(D), 1.0);
-        n = QVector4D(sin(D), sin(a), cos(D), 1.0);
+        p = QVector4D(Rf*2.*sin(D), 0.66f, Rf*2.* cos(D), 1.f);
+        n = QVector4D(sin(D), sin(a), cos(D), 1.);
         pR = mat*p;
         nR = mat*n;
         data.vertices->push_back(pR.x());
@@ -528,12 +625,12 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.normals->push_back(nR.x());
         data.normals->push_back(nR.y());
         data.normals->push_back(nR.z());
-        data.colors->push_back(color.x);
-        data.colors->push_back(color.y);
-        data.colors->push_back(color.z);
+        data.colors->push_back((float)color.x);
+        data.colors->push_back((float)color.y);
+        data.colors->push_back((float)color.z);
         //point C1
         D = (d+360/prec)*M_PI/180.0;
-        p = QVector4D(R*2.0* sin(D),0.66,R *2.0* cos(D), 1.0);
+        p = QVector4D(Rf*2.* sin(D), 0.66f, Rf *2.* cos(D), 1.f);
         n = QVector4D(sin(D), sin(a), cos(D), 1.0);
         pR = mat*p;
         nR = mat*n;
@@ -544,9 +641,9 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.normals->push_back(nR.x());
         data.normals->push_back(nR.y());
         data.normals->push_back(nR.z());
-        data.colors->push_back(color.x);
-        data.colors->push_back(color.y);
-        data.colors->push_back(color.z);
+        data.colors->push_back((float)color.x);
+        data.colors->push_back((float)color.y);
+        data.colors->push_back((float)color.z);
 
     }
 
@@ -555,9 +652,9 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
     for(int d = 0; d<360; d+= 360/prec)
     {
         //point A1
-        float D = d*M_PI/180.0;
-        QVector4D p(R*sin(D),0.66,R*cos(D), 1.0);
-        QVector4D n(sin(D), 0, cos(D), 1.0);
+        double D = d*M_PI/180.0;
+        QVector4D p(Rf*sin(D), 0.66f, Rf*cos(D), 1.f);
+        QVector4D n(sin(D), 0.f, cos(D), 1.f);
         QVector4D pR = mat*p;
         QVector4D nR = mat*n;
 
@@ -571,7 +668,7 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.colors->push_back(color.y);
         data.colors->push_back(color.z);
         //point B1
-        p = QVector4D(R * sin(D),0,R*cos(D), 1.0);
+        p = QVector4D(Rf * sin(D),0,Rf*cos(D), 1.0);
         n = QVector4D(sin(D), 0, cos(D), 1.0);
         pR = mat*p;
         nR = mat*n;
@@ -588,7 +685,7 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.colors->push_back(color.z);
           //point C1
         D = (d+360/prec)*M_PI/180.0;
-        p = QVector4D(R * sin(D),0,R*cos(D), 1.0);
+        p = QVector4D(Rf * sin(D),0,Rf*cos(D), 1.0);
         n = QVector4D(sin(D), 0, cos(D), 1.0);
         pR = mat*p;
         nR = mat*n;
@@ -604,7 +701,7 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         //point A2
         D = (d+360/prec)*M_PI/180.0;
 
-        p = QVector4D(R * sin(D),0,R*cos(D), 1.0);
+        p = QVector4D(Rf * sin(D),0,Rf*cos(D), 1.0);
         n = QVector4D(sin(D), 0, cos(D), 1.0);
         pR = mat*p;
         nR = mat*n;
@@ -614,11 +711,11 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.normals->push_back(nR.x());
         data.normals->push_back(nR.y());
         data.normals->push_back(nR.z());
-        data.colors->push_back(color.x);
-        data.colors->push_back(color.y);
-        data.colors->push_back(color.z);
+        data.colors->push_back((float)color.x);
+        data.colors->push_back((float)color.y);
+        data.colors->push_back((float)color.z);
         //point B2
-        p = QVector4D(R * sin(D),0.66,R*cos(D), 1.0);
+        p = QVector4D(Rf * sin(D), 0.66f, Rf*cos(D), 1.f);
         n = QVector4D(sin(D), 0, cos(D), 1.0);
         pR = mat*p;
         nR = mat*n;
@@ -628,13 +725,13 @@ void Viewer::makeArrow(float R, int prec, qglviewer::Vec from, qglviewer::Vec to
         data.normals->push_back(nR.x());
         data.normals->push_back(nR.y());
         data.normals->push_back(nR.z());
-        data.colors->push_back(color.x);
-        data.colors->push_back(color.y);
-        data.colors->push_back(color.z);
+        data.colors->push_back((float)color.x);
+        data.colors->push_back((float)color.y);
+        data.colors->push_back((float)color.z);
         //point C2
         D = d*M_PI/180.0;
-        p = QVector4D(R * sin(D),0.66,R*cos(D), 1.0);
-        n = QVector4D(sin(D), 0, cos(D), 1.0);
+        p = QVector4D(Rf * sin(D), 0.66f, Rf*cos(D), 1.f);
+        n = QVector4D(sin(D), 0.f, cos(D), 1.f);
         pR = mat*p;
         nR = mat*n;
         data.vertices->push_back(pR.x());
@@ -658,7 +755,12 @@ void Viewer::drawVisualHints()
         QMatrix4x4 mvpMatrix;
         QMatrix4x4 mvMatrix;
         double mat[16];
-        camera()->frame()->rotation().getMatrix(mat);
+        //camera()->frame()->rotation().getMatrix(mat);
+        camera()->getModelViewProjectionMatrix(mat);
+        //nullifies the translation
+        mat[12]=0;
+        mat[13]=0;
+        mat[14]=0;
         for(int i=0; i < 16; i++)
         {
             mvpMatrix.data()[i] = (float)mat[i];
@@ -705,7 +807,7 @@ void Viewer::drawVisualHints()
 
         vao[0].bind();
         rendering_program.bind();
-        glDrawArrays(GL_TRIANGLES, 0, v_Axis.size() / 3);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(v_Axis.size() / 3));
         rendering_program.release();
         vao[0].release();
     }
@@ -726,10 +828,8 @@ void Viewer::resizeGL(int w, int h)
     {
         orthoMatrix.data()[i] = (float)ortho[i];
     }
-    int max = w;
-    if (h>w)
-        max = h;
-    QVector4D length(max,max,max, 1.0);
+
+    QVector4D length(60,60,60, 1.0);
     length = orthoMatrix * length;
     AxisData data;
     v_Axis.resize(0);
@@ -738,26 +838,27 @@ void Viewer::resizeGL(int w, int h)
     data.vertices = &v_Axis;
     data.normals = &n_Axis;
     data.colors = &c_Axis;
-    makeArrow(0.06,10, qglviewer::Vec(0,0,0),qglviewer::Vec(length.x()/10.0,0,0),qglviewer::Vec(1,0,0), data);
-    makeArrow(0.06,10, qglviewer::Vec(0,0,0),qglviewer::Vec(0,length.x()/10.0,0),qglviewer::Vec(0,1,0), data);
-    makeArrow(0.06,10, qglviewer::Vec(0,0,0),qglviewer::Vec(0,0,-length.x()/10.0),qglviewer::Vec(0,0,1), data);
+    double l = length.x()*w/h;
+    makeArrow(0.06,10, qglviewer::Vec(0,0,0),qglviewer::Vec(l,0,0),qglviewer::Vec(1,0,0), data);
+    makeArrow(0.06,10, qglviewer::Vec(0,0,0),qglviewer::Vec(0,l,0),qglviewer::Vec(0,1,0), data);
+    makeArrow(0.06,10, qglviewer::Vec(0,0,0),qglviewer::Vec(0,0,l),qglviewer::Vec(0,0,1), data);
 
 
     vao[0].bind();
     buffers[0].bind();
-    buffers[0].allocate(v_Axis.data(), v_Axis.size() * sizeof(float));
+    buffers[0].allocate(v_Axis.data(), static_cast<int>(v_Axis.size()) * sizeof(float));
     rendering_program.enableAttributeArray("vertex");
     rendering_program.setAttributeBuffer("vertex",GL_FLOAT,0,3);
     buffers[0].release();
 
     buffers[1].bind();
-    buffers[1].allocate(n_Axis.data(), n_Axis.size() * sizeof(float));
+    buffers[1].allocate(n_Axis.data(), static_cast<int>(n_Axis.size() * sizeof(float)));
     rendering_program.enableAttributeArray("normal");
     rendering_program.setAttributeBuffer("normal",GL_FLOAT,0,3);
     buffers[1].release();
 
     buffers[2].bind();
-    buffers[2].allocate(c_Axis.data(), c_Axis.size() * sizeof(float));
+    buffers[2].allocate(c_Axis.data(), static_cast<int>(c_Axis.size() * sizeof(float)));
     rendering_program.enableAttributeArray("colors");
     rendering_program.setAttributeBuffer("colors",GL_FLOAT,0,3);
     buffers[2].release();
@@ -773,4 +874,186 @@ void Viewer::resizeGL(int w, int h)
     rendering_program.setUniformValue("ortho_mat", orthoMatrix);
     rendering_program.release();
 
+}
+
+QOpenGLShaderProgram* Viewer::getShaderProgram(int name) const
+{
+    // workaround constness issues in Qt
+    Viewer* viewer = const_cast<Viewer*>(this);
+
+    switch(name)
+    {
+    /// @TODO: factorize this code
+    case PROGRAM_WITH_LIGHT:
+        if(d->shader_programs[PROGRAM_WITH_LIGHT])
+        {
+            return d->shader_programs[PROGRAM_WITH_LIGHT];
+        }
+
+        else
+        {
+
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_with_light.v"))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_with_light.f"))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_WITH_LIGHT] = program;
+            return program;
+        }
+        break;
+    case PROGRAM_WITHOUT_LIGHT:
+        if( d->shader_programs[PROGRAM_WITHOUT_LIGHT])
+        {
+            return d->shader_programs[PROGRAM_WITHOUT_LIGHT];
+        }
+        else
+        {
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_without_light.v"))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_without_light.f"))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_WITHOUT_LIGHT] = program;
+            return program;
+        }
+        break;
+    case PROGRAM_NO_SELECTION:
+        if( d->shader_programs[PROGRAM_NO_SELECTION])
+        {
+            return d->shader_programs[PROGRAM_NO_SELECTION];
+        }
+        else
+        {
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_without_light.v"))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_no_light_no_selection.f"))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_NO_SELECTION] = program;
+            return program;
+        }
+        break;
+    case PROGRAM_WITH_TEXTURE:
+        if( d->shader_programs[PROGRAM_WITH_TEXTURE])
+        {
+            return d->shader_programs[PROGRAM_WITH_TEXTURE];
+        }
+        else
+        {
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_with_texture.v"))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_with_texture.f"))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_WITH_TEXTURE] = program;
+            return program;
+        }
+        break;
+    case PROGRAM_WITH_TEXTURED_EDGES:
+        if( d->shader_programs[PROGRAM_WITH_TEXTURED_EDGES])
+        {
+            return d->shader_programs[PROGRAM_WITH_TEXTURED_EDGES];
+        }
+        else
+        {
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_with_textured_edges.v" ))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_with_textured_edges.f" ))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_WITH_TEXTURED_EDGES] = program;
+            return program;
+
+        }
+        break;
+    case PROGRAM_INSTANCED:
+        if( d->shader_programs[PROGRAM_INSTANCED])
+        {
+            return d->shader_programs[PROGRAM_INSTANCED];
+        }
+        else
+        {
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_instanced.v" ))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_with_light.f" ))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_INSTANCED] = program;
+            return program;
+
+        }
+        break;
+    case PROGRAM_INSTANCED_WIRE:
+        if( d->shader_programs[PROGRAM_INSTANCED_WIRE])
+        {
+            return d->shader_programs[PROGRAM_INSTANCED_WIRE];
+        }
+        else
+        {
+            QOpenGLShaderProgram *program = new QOpenGLShaderProgram(viewer);
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Vertex,":/cgal/Polyhedron_3/resources/shader_instanced.v" ))
+            {
+                std::cerr<<"adding vertex shader FAILED"<<std::endl;
+            }
+            if(!program->addShaderFromSourceFile(QOpenGLShader::Fragment,":/cgal/Polyhedron_3/resources/shader_without_light.f" ))
+            {
+                std::cerr<<"adding fragment shader FAILED"<<std::endl;
+            }
+            program->link();
+            d->shader_programs[PROGRAM_INSTANCED_WIRE] = program;
+            return program;
+
+        }
+        break;
+    default:
+        std::cerr<<"ERROR : Program not found."<<std::endl;
+        return 0;
+    }
+}
+void Viewer::wheelEvent(QWheelEvent* e)
+{
+    if(e->modifiers().testFlag(Qt::ShiftModifier))
+    {
+        double delta = e->delta();
+        if(delta>0)
+        {
+            camera()->setZNearCoefficient(camera()->zNearCoefficient() * 1.01);
+        }
+        else
+            camera()->setZNearCoefficient(camera()->zNearCoefficient() / 1.01);
+        updateGL();
+    }
+    else
+        QGLViewer::wheelEvent(e);
 }

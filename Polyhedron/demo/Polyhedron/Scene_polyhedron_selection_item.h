@@ -9,10 +9,10 @@
 #include "Polyhedron_type.h"
 
 #include <CGAL/property_map.h>
-#include <CGAL/gl_render.h>
 #include <CGAL/Polygon_mesh_processing/orient_polygon_soup.h>
 #include <CGAL/Polygon_mesh_processing/polygon_soup_to_polygon_mesh.h>
 #include <CGAL/Polygon_mesh_processing/connected_components.h>
+#include "Polyhedron_demo_detect_sharp_edges.h"
 
 #include <fstream>
 #include <boost/foreach.hpp>
@@ -20,6 +20,7 @@
 #include <boost/property_map/vector_property_map.hpp>
 
 #include <CGAL/boost/graph/selection.h>
+#include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
 
 namespace PMP = CGAL::Polygon_mesh_processing;
 
@@ -173,7 +174,6 @@ public:
   Scene_polyhedron_selection_item() 
     : Scene_polyhedron_item_decorator(NULL, false)
     {
-        nbVaos = 0;
         for(int i=0; i<3; i++)
         {
             addVaos(i);
@@ -192,10 +192,10 @@ public:
   Scene_polyhedron_selection_item(Scene_polyhedron_item* poly_item, QMainWindow* mw) 
     : Scene_polyhedron_item_decorator(NULL, false)
     {
-        nbVaos = 0;
         nb_facets = 0;
         nb_points = 0;
         nb_lines = 0;
+
         for(int i=0; i<3; i++)
         {
             addVaos(i);
@@ -254,19 +254,34 @@ public:
   typedef boost::unordered_set<Facet_handle, CGAL::Handle_hash_function>      Selection_set_facet;
   typedef boost::unordered_set<edge_descriptor, CGAL::Handle_hash_function>    Selection_set_edge;
 
+  Polyhedron* polyhedron()
+  {
+    return this->poly_item->polyhedron();
+  }
 
     using Scene_polyhedron_item_decorator::draw;
-    virtual void draw(Viewer_interface*) const;
+    virtual void draw(CGAL::Three::Viewer_interface*) const;
     virtual void draw_edges() const { }
-    virtual void draw_edges(Viewer_interface*) const;
-    virtual void draw_points(Viewer_interface*) const;
+    virtual void draw_edges(CGAL::Three::Viewer_interface*) const;
+    virtual void draw_points(CGAL::Three::Viewer_interface*) const;
 
   bool supportsRenderingMode(RenderingMode m) const { return (m==Flat); }
 
   bool isEmpty() const {
     return selected_vertices.empty() && selected_edges.empty() && selected_facets.empty();
   }
-  Bbox bbox() const 
+  void selection_changed(bool b)
+  {
+      QGLViewer* v = *QGLViewer::QGLViewerPool().begin();
+      CGAL::Three::Viewer_interface* viewer = dynamic_cast<CGAL::Three::Viewer_interface*>(v);
+      if(!viewer)
+          return;
+      if(!b)
+        viewer->setBindingSelect();
+      else
+        viewer->setNoBinding();
+  }
+  void compute_bbox() const
   {
     // Workaround a bug in g++-4.8.3:
     //   http://stackoverflow.com/a/21755207/1728537
@@ -301,8 +316,8 @@ public:
         }
     }
 
-    if(!item_bbox) { return Bbox(); }
-    return Bbox(item_bbox->xmin(),item_bbox->ymin(),item_bbox->zmin(),
+    if(!item_bbox) { _bbox = this->poly_item->bbox(); return;}
+    _bbox = Bbox(item_bbox->xmin(),item_bbox->ymin(),item_bbox->zmin(),
                 item_bbox->xmax(),item_bbox->ymax(),item_bbox->zmax());
   }
 
@@ -385,9 +400,14 @@ public:
     case Active_handle::VERTEX:
       select_all<Vertex_handle>(); break;
     case Active_handle::FACET:
+    case Active_handle::CONNECTED_COMPONENT:
       select_all<Facet_handle>(); break;
     case Active_handle::EDGE:
       selected_edges.insert(edges(*polyhedron()).first, edges(*polyhedron()).second);
+      invalidate_buffers();
+      QGLViewer* v = *QGLViewer::QGLViewerPool().begin();
+      v->update();
+
     }
   }
   // select all of vertex, facet or edge (use Vertex_handle, Facet_handle, edge_descriptor as template argument)
@@ -408,6 +428,7 @@ public:
     case Active_handle::VERTEX:
       clear<Vertex_handle>(); break;
     case Active_handle::FACET:
+    case Active_handle::CONNECTED_COMPONENT:
       clear<Facet_handle>(); break;
     case Active_handle::EDGE:
       clear<edge_descriptor>(); break;
@@ -421,6 +442,12 @@ public:
     tr.container().clear();
     invalidate_buffers();
     Q_EMIT itemChanged();
+  }
+
+  void clear_all(){
+    clear<Vertex_handle>();
+    clear<Facet_handle>();
+    clear<edge_descriptor>();
   }
 
   boost::optional<std::size_t> get_minimum_isolated_component() {
@@ -477,9 +504,10 @@ public:
           dilate_selection<Vertex_handle>(steps);
         break;
         case Active_handle::FACET:
+        case Active_handle::CONNECTED_COMPONENT:
           dilate_selection<Facet_handle>(steps);
         break;
-        default:
+        case Active_handle::EDGE:
           dilate_selection<edge_descriptor>(steps);
       }
     }
@@ -490,9 +518,10 @@ public:
           erode_selection<Vertex_handle>(-steps);
         break;
         case Active_handle::FACET:
+        case Active_handle::CONNECTED_COMPONENT:
           erode_selection<Facet_handle>(-steps);
         break;
-        default:
+        case Active_handle::EDGE:
           erode_selection<edge_descriptor>(-steps);
       }
     }
@@ -538,8 +567,8 @@ public:
   };
 
   template <class Handle>
-  void dilate_selection(unsigned int steps) {
-
+  void dilate_selection(unsigned int steps)
+  {
     typedef Selection_traits<Handle, Scene_polyhedron_selection_item> Tr;
     Tr tr(this);
 
@@ -668,6 +697,19 @@ public:
     return out->size_of_vertices() > 0;
   }
 
+  void select_sharp_edges(const double angle)
+  {
+    CGAL::detect_sharp_edges(polyhedron(), angle);
+
+    BOOST_FOREACH(edge_descriptor e, edges(*polyhedron()))
+    {
+      Polyhedron::Halfedge_handle h = halfedge(e, *polyhedron());
+      if (h->is_feature_edge())
+        selected_edges.insert(e);
+    }
+    invalidate_buffers();
+  }
+
   void changed_with_poly_item() {
     // no need to update indices
     poly_item->invalidate_buffers();
@@ -676,15 +718,15 @@ public:
   }
 
 Q_SIGNALS:
-  void simplicesSelected(Scene_item*);
+  void simplicesSelected(CGAL::Three::Scene_item*);
 
 public Q_SLOTS:
   void invalidate_buffers() {
 
     // do not use decorator function, which calls changed on poly_item which cause deletion of AABB
       //  poly_item->invalidate_buffers();
-        compute_elements();
         are_buffers_filled = false;
+        compute_bbox();
   }
   // slots are called by signals of polyhedron_k_ring_selector
   void selected(const std::set<Polyhedron::Vertex_handle>& m)
@@ -734,10 +776,10 @@ protected:
     }
   }
 
-  template<class HandleType>
-  void has_been_selected(const std::set<HandleType>& selection)
+  template<typename HandleRange>
+  bool treat_selection(const HandleRange& selection)
   {
-    if(!visible()) { return; }
+    typedef typename HandleRange::value_type HandleType;
     Selection_traits<HandleType, Scene_polyhedron_selection_item> tr(this);
 
     bool any_change = false;
@@ -750,6 +792,43 @@ protected:
         any_change |= (tr.container().erase(h)!=0);
     }
     if(any_change) { invalidate_buffers(); Q_EMIT itemChanged(); }
+    return any_change;
+  }
+
+  Facet_handle face(Facet_handle fh)
+  { return fh; }
+  Facet_handle face(Vertex_handle)
+  { return boost::graph_traits<Polyhedron>::null_face(); }
+  Facet_handle face(edge_descriptor)
+  { return boost::graph_traits<Polyhedron>::null_face(); }
+
+  template<class HandleType>
+  void has_been_selected(const std::set<HandleType>& selection)
+  {
+    if(!visible()) { return; }
+
+
+    if (get_active_handle_type() == Active_handle::CONNECTED_COMPONENT)
+    {
+      Selection_traits<edge_descriptor,
+                       Scene_polyhedron_selection_item> tr(this);
+      tr.update_indices();
+      std::vector<bool> mark(tr.size(), false);
+      BOOST_FOREACH(edge_descriptor e, selected_edges)
+        mark[tr.id(e)] = true;
+      std::vector<Facet_handle> selected_cc;
+      CGAL::Polygon_mesh_processing::connected_component(
+        face(*selection.begin()),
+        *polyhedron(),
+        std::back_inserter(selected_cc),
+        CGAL::Polygon_mesh_processing::parameters::edge_is_constrained_map(
+          Is_selected_property_map<edge_descriptor>(mark)));
+       treat_selection(selected_cc);
+    }
+    else
+    {
+      treat_selection(selection);
+    }
   }
 
 public:
@@ -794,9 +873,9 @@ private:
   mutable std::size_t nb_points;
   mutable std::size_t nb_lines;
   mutable QOpenGLShaderProgram *program;
-  using Scene_item::initialize_buffers;
-  void initialize_buffers(Viewer_interface *viewer) const;
-  void compute_elements();
+  using CGAL::Three::Scene_item::initialize_buffers;
+  void initialize_buffers(CGAL::Three::Viewer_interface *viewer) const;
+  void compute_elements() const;
 
 };
 

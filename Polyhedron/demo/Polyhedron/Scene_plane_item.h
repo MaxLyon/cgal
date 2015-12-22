@@ -2,14 +2,14 @@
 #define SCENE_PLANE_ITEM_H
 
 
-#include "Scene_item.h"
-#include "Scene_interface.h"
+#include  <CGAL/Three/Scene_item.h>
+#include <CGAL/Three/Scene_interface.h>
 
 #include "Scene_basic_objects_config.h"
 
 #include <QGLViewer/manipulatedFrame.h>
 #include <QGLViewer/qglviewer.h>
-#include <Viewer_interface.h>
+#include <CGAL/Three/Viewer_interface.h>
 
 #include <cmath>
 
@@ -18,14 +18,14 @@ typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel_epic;
 typedef Kernel_epic::Plane_3 Plane_3;
 
 class SCENE_BASIC_OBJECTS_EXPORT Scene_plane_item 
-  : public Scene_item
+  : public CGAL::Three::Scene_item
 {
   Q_OBJECT
 public:
   typedef qglviewer::ManipulatedFrame ManipulatedFrame;
 
-  Scene_plane_item(const Scene_interface* scene_interface) 
-      :Scene_item(2,2),
+  Scene_plane_item(const CGAL::Three::Scene_interface* scene_interface)
+      :CGAL::Three::Scene_item(NbOfVbos,NbOfVaos),
       scene(scene_interface),
       manipulable(false),
       can_clone(true),
@@ -37,12 +37,13 @@ public:
   }
 
   ~Scene_plane_item() {
+    frame = 0;
     delete frame;
   }
 
   bool isFinite() const { return false; }
   bool isEmpty() const { return false; }
-  Bbox bbox() const { return Bbox(); }
+  void compute_bbox() const { _bbox = Bbox(); }
 
   bool manipulatable() const {
     return manipulable;
@@ -92,10 +93,10 @@ public:
 
   // Indicate if rendering mode is supported
   bool supportsRenderingMode(RenderingMode m) const {
-    return (m == Wireframe || m == Flat); 
+    return (m == Wireframe || m == Flat || m == FlatPlusEdges);
   }
-  virtual void draw(Viewer_interface*) const;
- virtual void draw_edges(Viewer_interface* viewer)const;
+  virtual void draw(CGAL::Three::Viewer_interface*) const;
+ virtual void draw_edges(CGAL::Three::Viewer_interface* viewer)const;
   Plane_3 plane() const {
     const qglviewer::Vec& pos = frame->position();
     const qglviewer::Vec& n = 
@@ -120,6 +121,7 @@ public Q_SLOTS:
   {
       compute_normals_and_vertices();
       are_buffers_filled = false;
+      compute_bbox();
   }
 
   void setPosition(float x, float y, float z) {
@@ -146,10 +148,21 @@ public Q_SLOTS:
     manipulable = b;
   }
 private:
-  const Scene_interface* scene;
+  const CGAL::Three::Scene_interface* scene;
   bool manipulable;
   bool can_clone;
   qglviewer::ManipulatedFrame* frame;
+
+  enum VAOs {
+      Facets = 0,
+      Edges,
+      NbOfVaos = Edges +1
+  };
+  enum VBOs {
+      Facets_vertices = 0,
+      Edges_vertices,
+      NbOfVbos = Edges_vertices +1
+  };
 
   mutable std::vector<float> positions_lines;
   mutable std::vector<float> positions_quad;
@@ -157,8 +170,8 @@ private:
   mutable bool smooth_shading;
   mutable QOpenGLShaderProgram *program;
 
-  using Scene_item::initialize_buffers;
-  void initialize_buffers(Viewer_interface*)const;
+  using CGAL::Three::Scene_item::initialize_buffers;
+  void initialize_buffers(CGAL::Three::Viewer_interface*)const;
   void compute_normals_and_vertices(void);
 };
 

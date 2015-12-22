@@ -23,6 +23,8 @@
 
 #include<set>
 #include<vector>
+
+#include <CGAL/boost/graph/named_function_params.h>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/foreach.hpp>
 #include <boost/graph/filtered_graph.hpp>
@@ -393,11 +395,10 @@ namespace Polygon_mesh_processing{
 }// namespace internal
 
 /*!
- * \ingroup PkgPolygonMeshProcessing
+ * \ingroup keep_connected_components_grp
  *  discovers all the faces in the same connected component as `seed_face` and records them in `out`.
  * `seed_face` will also be added in `out`.
- *  Two faces are recorded in the same connected component if they share an edge that is not marked as constrained.
-
+ *
  *  \tparam PolygonMesh a model of `FaceGraph`
  *  \tparam FaceOutputIterator a model of `OutputIterator` that accepts
         faces of type
@@ -437,7 +438,8 @@ connected_component(typename boost::graph_traits<PolygonMesh>::face_descriptor s
     internal::No_constraint<PolygonMesh>//default
   > ::type                                               EdgeConstraintMap;
   EdgeConstraintMap ecmap
-    = choose_param(get_param(np, edge_is_constrained), EdgeConstraintMap());
+    = choose_param(get_param(np, edge_is_constrained),
+                   internal::No_constraint<PolygonMesh>());
 
   typedef typename boost::graph_traits<PolygonMesh>::face_descriptor face_descriptor;
   typedef typename boost::graph_traits<PolygonMesh>::halfedge_descriptor halfedge_descriptor;
@@ -474,9 +476,8 @@ connected_component(typename boost::graph_traits<PolygonMesh>::face_descriptor s
 }
 
 /*!
- * \ingroup PkgPolygonMeshProcessing
+ * \ingroup keep_connected_components_grp
  *  computes for each face the index of the corresponding connected component.
- *  Two faces are recorded in the same connected component if they share an edge that is not marked as constrained.
  *
  *  A property map for `CGAL::face_index_t` should be either available as an internal property map 
  *  to `pmesh` or provided as one of the \ref namedparameters.
@@ -559,10 +560,9 @@ void keep_connected_components(PolygonMesh& pmesh
                               , const NamedParameters& np);
 
 /*!
- * \ingroup PkgPolygonMeshProcessing
- *  removes the small connected components and all the isolated vertices.
+ * \ingroup keep_connected_components_grp
+ *  removes the small connected components and all isolated vertices.
  *  Keep `nb_components_to_keep` largest connected components. 
- *  Two faces are considered in the same connected component if they share an edge that is not marked as constrained.
  *
  * Property maps for `CGAL::face_index_t` and `CGAL::vertex_index_t`
  * should be either available as internal property maps 
@@ -636,6 +636,83 @@ std::size_t keep_largest_connected_components(PolygonMesh& pmesh,
     nb_components_to_keep,
     CGAL::Polygon_mesh_processing::parameters::all_default());
 }
+
+/*!
+ * \ingroup keep_connected_components_grp
+ *  removes connected components with less than a given number of faces.
+ *
+ * Property maps for `CGAL::face_index_t` and `CGAL::vertex_index_t`
+ * should be either available as internal property maps 
+ * to `pmesh` or provided as \ref namedparameters.
+ *
+ * \tparam PolygonMesh a model of `FaceListGraph`
+ * \tparam NamedParameters a sequence of \ref namedparameters
+ *
+ * \param pmesh the polygon mesh
+ * \param threshold_components_to_keep the number of faces a component must have so that it is kept
+ * \param np optional \ref namedparameters described below
+ *
+ * \cgalNamedParamsBegin
+ *    \cgalParamBegin{edge_is_constrained_map} a property map containing the constrained-or-not status of each edge of `pmesh` \cgalParamEnd
+ *    \cgalParamBegin{face_index_map} a property map containing the index of each face of `pmesh` \cgalParamEnd
+ *    \cgalParamBegin{vertex_index_map} a property map containing the index of each vertex of `pmesh` \cgalParamEnd
+ * \cgalNamedParamsEnd
+ *
+ *  \return the number of connected components removed (ignoring isolated vertices).
+ */
+template <typename PolygonMesh
+        , typename NamedParameters>
+std::size_t keep_large_connected_components(PolygonMesh& pmesh
+                                            , std::size_t threshold_components_to_keep
+                                            , const NamedParameters& np)
+{
+  typedef PolygonMesh PM;
+  typedef typename boost::graph_traits<PM>::face_descriptor face_descriptor;
+
+  using boost::choose_param;
+  using boost::get_param;
+  using boost::choose_const_pmap;
+
+  //FaceIndexMap
+  typedef typename GetFaceIndexMap<PM, NamedParameters>::type FaceIndexMap;
+  FaceIndexMap fim = choose_const_pmap(get_param(np, boost::face_index),
+                                       pmesh,
+                                       boost::face_index);
+
+  //vector_property_map
+  boost::vector_property_map<std::size_t, FaceIndexMap> face_cc(fim);
+  std::size_t num = connected_components(pmesh, face_cc, np);
+  std::vector< std::pair<std::size_t, std::size_t> > component_size(num);
+
+  for(std::size_t i=0; i < num; i++)
+    component_size[i] = std::make_pair(i,0);
+
+  BOOST_FOREACH(face_descriptor f, faces(pmesh))
+    ++component_size[face_cc[f]].second;
+
+
+  std::vector<std::size_t> cc_to_keep;
+  for(std::size_t i=0; i<num; ++i){
+    if(component_size[i].second >= threshold_components_to_keep){
+      cc_to_keep.push_back( component_size[i].first );
+    }
+  }
+
+  keep_connected_components(pmesh, cc_to_keep, face_cc, np);
+
+  return num - cc_to_keep.size();
+}
+
+
+template <typename PolygonMesh>
+std::size_t keep_large_connected_components(PolygonMesh& pmesh,
+                                            std::size_t threshold_components_to_keep)
+{
+  return keep_large_connected_components(pmesh,
+    threshold_components_to_keep,
+    CGAL::Polygon_mesh_processing::parameters::all_default());
+}
+
 
 template <typename PolygonMesh
         , typename ComponentRange
@@ -777,7 +854,7 @@ void keep_or_remove_connected_components(PolygonMesh& pmesh
 /*!
 * \ingroup keep_connected_components_grp
 * keeps the connected components designated by theirs ids in `components_to_keep`,
-* and removes the other connected components as well as all the isolated vertices.
+* and removes the other connected components as well as all isolated vertices.
 * The connected component id of a face is given by `fcm`.
 *
 * \note If the removal of the connected components makes `pmesh` a non-manifold surface,
@@ -818,9 +895,9 @@ void keep_connected_components(PolygonMesh& pmesh
 }
 
 /*!
-* \ingroup remove_connected_components_grp
+* \ingroup keep_connected_components_grp
 * Removes in `pmesh` the connected components designated by theirs ids
-* in `components_to_remove` as well as all the isolated vertices.
+* in `components_to_remove` as well as all isolated vertices.
 * The connected component id of a face is given by `fcm`.
 *
 * \note If the removal of the connected components makes `pmesh` a non-manifold surface,
@@ -863,10 +940,9 @@ void remove_connected_components(PolygonMesh& pmesh
 }
 
 /*!
-* \ingroup remove_connected_components_grp
+* \ingroup keep_connected_components_grp
 *  keeps the connected components not designated by the faces in `components_to_remove`,
-*  and removes the other connected components and all the isolated vertices.
-*  Two faces are considered in the same connected component if they share an edge that is not marked as constrained.
+*  and removes the other connected components and all isolated vertices.
 *
 * Property maps for `CGAL::face_index_t` and `CGAL::vertex_index_t`
 * should be either available as internal property maps
@@ -926,8 +1002,7 @@ void remove_connected_components(PolygonMesh& pmesh
 /*!
 * \ingroup keep_connected_components_grp
 *  keeps the connected components designated by the faces in `components_to_keep`,
-*  and removes the other connected components and all the isolated vertices.
-*  Two faces are considered in the same connected component if they share an edge that is not marked as constrained.
+*  and removes the other connected components and all isolated vertices.
 *
 * Property maps for `CGAL::face_index_t` and `CGAL::vertex_index_t`
 * should be either available as internal property maps

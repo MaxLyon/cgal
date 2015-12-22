@@ -59,6 +59,7 @@
 <td width="28%">
 
 <table CELLSPACING=0>
+<tr><td><a href="#release4.8">4.8</a>&nbsp;<td> (2016)
 <tr><td><a href="#release4.7">4.7</a>&nbsp;<td> (October 2015)
 <tr><td><a href="#release4.6.2">4.6.2</a>&nbsp;<td> (August 2015)
 <tr><td><a href="#release4.6.1">4.6.1</a>&nbsp;<td> (June 2015)
@@ -119,6 +120,13 @@ and <code>src/</code> directories).
   <p>Release date:  </p>
 
 <!-- Installation (and general changes) -->
+
+  <h3>General</h3>
+  <ul>
+    <li>The support for Qt3 is dropped and all demos using it got removed.
+    </li>
+  </ul>
+
 <!-- New packages -->
 <!-- Major and breaking changes -->
 <!-- Arithmetic and Algebra -->
@@ -126,22 +134,62 @@ and <code>src/</code> directories).
 <!-- Geometry Kernels -->
 <!-- Convex Hull Algorithms -->
 <!-- Polygons -->
+  <h3>2D Regularized Boolean Set-Operations</h3>
+  <ul>
+    <li>Improve the performance of operations in some settings.
+        <b>Breaking change</b>: This improvement requires changes of the face and halfedge type of the underlying arrangement Dcel.
+        See the concepts `GeneralPolygonSetDcelHalfedge` and  `GeneralPolygonSetDcelFace` for more details.
+        If you use a different simplex types, inheriting your simplices from `CGAL::Gps_face_base` and `CGAL::Gps_halfedge_base`
+        is sufficient to accommodate for the update.
+    </li>
+  </ul>
 <!-- Cell Complexes and Polyhedra -->
   <h3>3D Boolean Operations on Nef Polyhedra</h3>
   <ul>
     <li>Add 3 new constructors: from a point range, from a point, and from a segment.</li>
   </ul>
+  <h3>Combinatorial Maps</h3>
+  <ul>
+    <li>Change the type of Boolean marks, old type is int, new type is size_type. If no more mark is available, get_new_mark throws an exception, instead of returning -1.</li>
+  </ul>
 <!-- Arrangements -->
+  <h3>2D Arrangements</h3>
+  <ul>
+    <li>Speed up the edge removal in case the incident faces contains many holes.</li>
+  </ul>
 <!-- Triangulations and Delaunay Triangulations -->
 <!-- Voronoi Diagrams -->
 <!-- Mesh Generation -->
+  <h3>3D Mesh Generation</h3>
+  <ul>
+    <li>Add support of 3D gray level images as input for the tetrahedral mesh generation.</li>
+  </ul>
 <!-- Surface Reconstruction -->
 <!-- Geometry Processing -->
+  <h3>Polygon Mesh Processing</h3>
+  <ul>
+    <li>Add a new triangle-based isotropic remeshing algorithm for 
+    triangulated surface meshes, 
+    <code>CGAL::Polygon_mesh_processing::isotropic_remeshing()</code>
+    and a helper function for isotropic remeshing :
+    <code>CGAL::Polygon_mesh_processing::split_long_edges()</code></li>
+    <li>Add the function <code>CGAL::Polygon_mesh_processing::border_halfedges()</code>
+    to collect the border of a given face range</li>
+    <li>Add the function <code>CGAL::Polygon_mesh_processing::remove_isolated_vertices()</code>
+    to be used on any polygon mesh</li>
+  </ul>
   <h3>Surface Mesh Parameterization</h3>
   <ul>
     <li><code>LSCM_parameterizer_3</code> now uses by default Eigen
     instead of OpenNL as a model
     of <code>SparseLinearAlgebraTraits_d</code>.</li>
+  </ul>
+  <h3>Polygon Mesh Processing</h3>
+  <ul>
+    <li>Add function <code>keep_large_connected_components()</code></li>
+    <li>Add measuring functions for polygon meshes, to compute length, area,
+    and volume of simplices or group of simplices of a polygon mesh.</li>
+    <li>Add function bbox_3() to compute the bounding box of a polygon mesh.</li>
   </ul>
   <h3>Point Set Processing</h3>
   <ul>
@@ -154,6 +202,17 @@ and <code>src/</code> directories).
     or <code>CGAL::Parallel_tag</code> when calling one of these functions.</li>
     <li> <code>CGAL::Parallel_tag</code> can no longer be used in
     Point Set Processing algorithms if TBB is not available.</li>
+    <li>
+    Add a new simplification algorithm based on hierarchical
+    clustering: <code>CGAL::hierarchy_simplify_point_set()</code>. It
+    allows either to uniformly simplify the point set or to
+    automatically adapt the local density of points to the local
+    variation of the input computed by principal component analysis.
+    </li>
+    <li> New IO functions for PLY format (Polygon File
+      Format): <code>CGAL::read_ply_points()</code>,
+      <code>CGAL::read_ply_points_and_normals()</code>, <code>CGAL::write_ply_points()</code>
+    and <code>CGAL::write_ply_points_and_normals()</code>.</li>
   </ul>
   <h3>Surface Mesh Parameterization</h3>
   <ul>
@@ -162,6 +221,10 @@ and <code>src/</code> directories).
     of <code>SparseLinearAlgebraTraits_d</code>.</li>
   </ul>
 <!-- Spatial Searching and Sorting -->
+  <h3>Spatial Searching</h3>
+  <ul>
+    <li>Add function to find any point in a range query, that is neither all points, nor the closest one.</li>
+  </ul>
 <!-- Geometric Optimization -->
   <h3>Principal Component Analysis</h3>
   <ul>
@@ -208,7 +271,7 @@ and <code>src/</code> directories).
       edition it should be
     <code>/path-to/qt-everywhere-opensource-src-&lt;version&gt;/qtbase/lib/cmake/Qt5</code>.
     </li>
-    <li>The code of the 3D demos now use modern OpenGL, with shaders,
+    <li>The code of the 3D demos now uses modern OpenGL, with shaders,
     instead of the fixed pipeline API of OpenGL-1.</li>
     <li>The Microsoft Windows Visual C++ compiler 2015 (VC14) is now
       supported.  However, since this compiler is not officially supported
@@ -308,10 +371,10 @@ and <code>src/</code> directories).
   <h3>Approximation of Ridges and Umbilics on Triangulated Surface Meshes</h3>
   <ul>
     <li> This package now supports any model of the
-      concept <code>FaceGraph</code>.
-    <li> <b>Breaking change:</b> The package no longer support models
+      concept <code>FaceGraph</code>.</li>
+    <li> <b>Breaking change:</b> The package no longer supports models
       of <code>TriangulatedSurfaceMesh</code> which are not at the same
-      time model of the concept <code>FaceGraph</code>.
+      time models of the concept <code>FaceGraph</code>.
     </li>
   </ul>
 
@@ -338,7 +401,7 @@ and <code>src/</code> directories).
 	<li>The existing <code>ArrangementLandmarkTraits_2</code> concept,
 	  which has two requirements, now refines the two respective
 	  concepts above.</li>
-	<li>The template parameter of the exsting
+	<li>The template parameter of the existing
 	  <code>Arr_polyline_traits_2&lt;SegmentTraits&gt;</code> template
 	  must be substituted with a traits class that is a model of
 	  the <code>ArrangementConstructXMonotoneTraits_2</code> concept
@@ -405,7 +468,7 @@ and <code>src/</code> directories).
       whether a point is on or close to a feature edge. The former function
       is also internally used by <code>CGAL::vcm_estimate_normals()</code>
       to estimate the normals of a point set and it is particularly suited
-      to point set with noise.
+      to point sets with noise.
     </li>
   </ul>
 

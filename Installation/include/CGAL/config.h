@@ -1,4 +1,4 @@
-// Copyright (c) 1997-2010  
+// Copyright (c) 1997-2013
 // Utrecht University (The Netherlands),
 // ETH Zurich (Switzerland),
 // INRIA Sophia-Antipolis (France),
@@ -23,6 +23,7 @@
 // Author(s)     : Wieger Wesselink 
 //                 Michael Hoffmann <hoffmann@inf.ethz.ch>
 //                 Sylvain Pion
+//                 Laurent Rineau
 
 #ifndef CGAL_CONFIG_H
 #define CGAL_CONFIG_H
@@ -42,6 +43,12 @@
 #if defined(CGAL_TEST_SUITE) && defined(NDEBUG)
 #  error The test-suite needs no NDEBUG defined
 #endif // CGAL_TEST_SUITE and NDEBUG
+
+// See [[Small features/Visual_Leak_Detector]] in CGAL developers wiki
+// See also: http://vld.codeplex.com/
+#if defined(CGAL_ENABLE_VLD)
+#  include <vld.h>
+#endif // CGAL_ENABLE_VLD
 
 // Workaround to the following bug:
 // https://bugreports.qt-project.org/browse/QTBUG-22829
@@ -240,7 +247,16 @@
 // Big endian or little endian machine.
 // ====================================
 
-#if defined (__GLIBC__)
+#if (BOOST_VERSION >= 105500)
+#  include <boost/predef.h>
+#  if BOOST_ENDIAN_BIG_BYTE
+#    define CGAL_BIG_ENDIAN
+#  elif BOOST_ENDIAN_LITTLE_BYTE
+#    define CGAL_LITTLE_ENDIAN
+#  else
+#    error Unknown endianness
+#  endif
+#elif defined (__GLIBC__)
 #  include <endian.h>
 #  if (__BYTE_ORDER == __LITTLE_ENDIAN)
 #    define CGAL_LITTLE_ENDIAN

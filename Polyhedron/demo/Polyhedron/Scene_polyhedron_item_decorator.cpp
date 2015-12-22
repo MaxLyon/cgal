@@ -3,7 +3,7 @@
 
 Scene_polyhedron_item_decorator::Scene_polyhedron_item_decorator
   (Scene_polyhedron_item* poly_item, bool delete_item)
-  :Scene_item(), poly_item(poly_item), delete_poly_item(delete_item)
+  :CGAL::Three::Scene_item(), poly_item(poly_item), delete_poly_item(delete_item)
 { }
 
 Scene_polyhedron_item_decorator::~Scene_polyhedron_item_decorator()
@@ -55,9 +55,9 @@ Scene_polyhedron_item_decorator::isEmpty() const {
   return poly_item->isEmpty();
 }
 
-Scene_polyhedron_item_decorator::Bbox
-Scene_polyhedron_item_decorator::bbox() const {
-  return poly_item->bbox();
+void
+Scene_polyhedron_item_decorator::compute_bbox() const {
+  _bbox = poly_item->bbox();
 }
 
 
@@ -67,6 +67,7 @@ invalidate_buffers()
 {
   poly_item->invalidate_buffers();
   Scene_item::invalidate_buffers();
+  compute_bbox();
 }
 
 void 
