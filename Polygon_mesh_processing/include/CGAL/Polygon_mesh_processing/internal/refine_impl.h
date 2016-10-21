@@ -34,7 +34,7 @@
 #include <CGAL/boost/graph/iterator.h>
 #include <CGAL/boost/graph/Euler_operations.h>
 #include <CGAL/boost/graph/properties.h>
-#include <boost/property_map/property_map.hpp>
+#include <CGAL/property_map.h>
 
 namespace CGAL {
 
@@ -113,9 +113,9 @@ private:
       vertex_descriptor vk = target(prev(halfedge(fd,pmesh),pmesh),pmesh);
       Point_3 c = CGAL::centroid(vpmap[vi], vpmap[vj], vpmap[vk]);
       double sac  = (scale_attribute[vi] + scale_attribute[vj] + scale_attribute[vk])/3.0;
-      double dist_c_vi = CGAL::sqrt(CGAL::squared_distance(c,vpmap[vi]));
-      double dist_c_vj = CGAL::sqrt(CGAL::squared_distance(c,vpmap[vj]));
-      double dist_c_vk = CGAL::sqrt(CGAL::squared_distance(c,vpmap[vk]));
+      double dist_c_vi = to_double(CGAL::approximate_sqrt(CGAL::squared_distance(c,vpmap[vi])));
+      double dist_c_vj = to_double(CGAL::approximate_sqrt(CGAL::squared_distance(c, vpmap[vj])));
+      double dist_c_vk = to_double(CGAL::approximate_sqrt(CGAL::squared_distance(c, vpmap[vk])));
       if((alpha * dist_c_vi > sac) &&
          (alpha * dist_c_vj > sac) &&
          (alpha * dist_c_vk > sac) &&
@@ -218,7 +218,7 @@ private:
       }
 
       const Point_3& vq = vpmap[target(opposite(*circ,pmesh),pmesh)];
-      sum += CGAL::sqrt(CGAL::squared_distance(vp, vq));
+      sum += to_double(CGAL::approximate_sqrt(CGAL::squared_distance(vp, vq)));
       ++deg;
     } while(++circ != done);
 
@@ -303,20 +303,22 @@ public:
     std::map<vertex_descriptor, double> scale_attribute;
     calculate_scale_attribute(faces, interior_map, scale_attribute, accept_internal_facets);
 
-    std::vector<face_descriptor> new_faces;
+    std::vector<face_descriptor> all_faces(boost::begin(faces), boost::end(faces));
     CGAL::Timer total_timer; total_timer.start();
     for(int i = 0; i < 10; ++i)
     {
+      std::vector<face_descriptor> new_faces;
       CGAL::Timer timer; timer.start();
-      bool is_subdivided = subdivide(faces, border_edges, scale_attribute, vertex_out, facet_out, new_faces, alpha);
+      bool is_subdivided = subdivide(all_faces, border_edges, scale_attribute, vertex_out, facet_out, new_faces, alpha);
       CGAL_TRACE_STREAM << "**Timer** subdivide() :" << timer.time() << std::endl; timer.reset();
-      if(!is_subdivided) { 
-        break; }
+      if(!is_subdivided)
+        break;
 
       bool is_relaxed = relax(faces, new_faces, border_edges);
       CGAL_TRACE_STREAM << "**Timer** relax() :" << timer.time() << std::endl;
-      if(!is_relaxed) { 
-        break; }
+      if(!is_relaxed)
+        break;
+      all_faces.insert(all_faces.end(), new_faces.begin(), new_faces.end());
     }
 
     CGAL_TRACE_STREAM << "**Timer** TOTAL: " << total_timer.time() << std::endl;

@@ -2,11 +2,11 @@
 # This is the CMake script for compiling a CGAL application.
 
 
-project( examples_ )
+project( Solver_interface_Examples )
 
 cmake_minimum_required(VERSION 2.8.10)
 
-find_package(CGAL QUIET COMPONENTS Core )
+find_package(CGAL QUIET)
 
 if ( CGAL_FOUND )
 

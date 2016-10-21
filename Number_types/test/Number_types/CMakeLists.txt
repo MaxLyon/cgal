@@ -3,7 +3,7 @@
 # that dependency so as to test all the number types not depending on CORE
 # when it is not installed
 
-project( Number_types_test )
+project( Number_types_Tests )
 
 cmake_minimum_required(VERSION 2.8.11)
 
@@ -15,7 +15,6 @@ if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
   include( CGAL_CreateSingleSourceCGALProgram )
   include( CGAL_VersionUtils )
-  find_package( MPFI )
 
   include_directories( BEFORE ../../include include )
   include_directories( BEFORE ../../../Arithmetic_kernel/include)
@@ -72,9 +71,12 @@ if ( CGAL_FOUND )
   create_single_source_cgal_program( "to_interval_test.cpp" )
   create_single_source_cgal_program( "unsigned.cpp" )
   create_single_source_cgal_program( "utilities.cpp" )
-  if( MPFI_FOUND )
-    include( ${MPFI_USE_FILE} )
-  endif( MPFI_FOUND )
+  if( GMP_FOUND )
+    find_package( MPFI )
+    if( MPFI_FOUND )
+      include( ${MPFI_USE_FILE} )
+    endif( MPFI_FOUND )
+  endif( GMP_FOUND )
   # all the programs below will be linked against MPFI in case it is present
   create_single_source_cgal_program( "Gmpfi.cpp" )
   create_single_source_cgal_program( "Gmpfr_bug.cpp" )

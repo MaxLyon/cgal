@@ -21,6 +21,11 @@
 #ifndef CGAL_MIN_ANNULUS_D_H
 #define CGAL_MIN_ANNULUS_D_H
 
+#ifdef _MSC_VER
+# pragma warning(push)
+# pragma warning(disable: 4244) // conversion warning in Boost iterator_adaptor
+#endif
+
 // includes
 // --------
 #include <CGAL/Optimisation/basic.h>
@@ -32,6 +37,7 @@
 #include <CGAL/QP_solver/QP_full_exact_pricing.h>
 #include <CGAL/boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/functional.hpp>
 
 // here is how it works. We have d+2 variables: 
 // R (big radius), r (small radius), c (center). The problem is
@@ -256,7 +262,7 @@ private:
   typedef  QP_access_by_index
   <typename std::vector<Point>::const_iterator, int> Point_by_index;
     
-  typedef  std::binder2nd< std::divides<int> >
+  typedef  boost::binder2nd< std::divides<int> >
   Divide;
     
   typedef  std::vector<int>           Index_vector;
@@ -331,7 +337,7 @@ public:
 				  solver->basic_original_variable_indices_begin(),
 				  CGAL::compose1_1(
 						   Point_by_index( points.begin()),
-						   std::bind2nd( std::divides<int>(), 2)));
+						   boost::bind2nd( std::divides<int>(), 2)));
   }
     
   Support_point_iterator
@@ -342,7 +348,7 @@ public:
 				  solver->basic_original_variable_indices_end(),
 				  CGAL::compose1_1(
 						   Point_by_index( points.begin()),
-						   std::bind2nd( std::divides<int>(), 2)));
+						   boost::bind2nd( std::divides<int>(), 2)));
   }
     
   int  number_of_inner_support_points() const { return static_cast<int>(inner_indices.size());}
@@ -589,7 +595,7 @@ private:
   bool
   check_dimension( std::size_t  offset = 0)
   { return ( std::find_if( points.begin()+offset, points.end(),
-			   CGAL::compose1_1( std::bind2nd(
+			   CGAL::compose1_1( boost::bind2nd(
 							  std::not_equal_to<int>(), d),
 					     tco.access_dimension_d_object()))
 	     == points.end()); }
@@ -867,6 +873,10 @@ operator >> ( std::istream& is, CGAL::Min_annulus_d<Traits_>& min_annulus)
 }
 
 } //namespace CGAL
+
+#ifdef _MSC_VER
+# pragma warning(pop)
+#endif
 
 #endif // CGAL_MIN_ANNULUS_D_H
 

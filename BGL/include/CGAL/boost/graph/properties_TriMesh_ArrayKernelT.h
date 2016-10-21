@@ -99,9 +99,28 @@ struct property_map<OpenMesh::TriMesh_ArrayKernelT<K>, boost::vertex_point_t >
   typedef type const_type;
 };
 
+template<typename K>
+struct graph_has_property<OpenMesh::TriMesh_ArrayKernelT<K>, edge_weight_t>
+  : CGAL::Tag_true{};
+template<typename K>
+struct graph_has_property<OpenMesh::TriMesh_ArrayKernelT<K>, vertex_index_t>
+  : CGAL::Tag_true{};
+template<typename K>
+struct graph_has_property<OpenMesh::TriMesh_ArrayKernelT<K>, face_index_t>
+  : CGAL::Tag_true{};
+template<typename K>
+struct graph_has_property<OpenMesh::TriMesh_ArrayKernelT<K>, edge_index_t>
+  : CGAL::Tag_true{};
+template<typename K>
+struct graph_has_property<OpenMesh::TriMesh_ArrayKernelT<K>, halfedge_index_t>
+  : CGAL::Tag_true{};
+template<typename K>
+struct graph_has_property<OpenMesh::TriMesh_ArrayKernelT<K>, vertex_point_t>
+  : CGAL::Tag_true{};
+
 } // namespace boost
 
-namespace boost {
+namespace OpenMesh {
 
 
 template <typename K>
@@ -188,7 +207,7 @@ put(boost::vertex_point_t p, OpenMesh::TriMesh_ArrayKernelT<K>& g,
 }
 
 
-} // namespace boost
+} // namespace OpenMesh
 
 
 

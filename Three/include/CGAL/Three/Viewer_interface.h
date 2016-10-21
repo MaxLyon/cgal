@@ -31,6 +31,8 @@ class QWidget;
 class QMouseEvent;
 class QKeyEvent;
 class QOpenGLShaderProgram;
+class TextRenderer;
+class TextListItem;
 
 //! \file Viewer_interface.h
 #include <CGAL/Three/Viewer_config.h> // for VIEWER_EXPORT
@@ -43,14 +45,46 @@ class VIEWER_EXPORT Viewer_interface : public QGLViewer, public QOpenGLFunctions
   Q_OBJECT
 
 public:
-  enum OpenGL_program_IDs { PROGRAM_WITH_LIGHT,
-                            PROGRAM_WITHOUT_LIGHT,
-                            PROGRAM_NO_SELECTION,
-                            PROGRAM_WITH_TEXTURE,
-                            PROGRAM_WITH_TEXTURED_EDGES,
-                            PROGRAM_INSTANCED,
-                            PROGRAM_INSTANCED_WIRE,
-                            NB_OF_PROGRAMS };
+ /*!
+   * \brief The OpenGL_program_IDs enum
+   * This enum holds the OpenGL programs IDs that are given to getShaderProgram() and attribBuffers().
+   *@see getShaderProgram
+   * @see attribBuffers
+   */
+  enum OpenGL_program_IDs
+  {
+   PROGRAM_WITH_LIGHT = 0,      /** Used to render a surface or edge affected by the light. It uses a per fragment lighting model, and renders brighter the selected item.*/
+   PROGRAM_WITHOUT_LIGHT,       /** Used to render a polygon edge or points. It renders in a uniform color and is not affected by light. It renders the selected item in black.*/
+   PROGRAM_NO_SELECTION,        /** Used to render a polyline or a surface that is not affected by light, like a cutting plane. It renders in a uniform color that does not change with selection.*/
+   PROGRAM_WITH_TEXTURE,        /** Used to render a textured polyhedron. Affected by light.*/
+   PROGRAM_PLANE_TWO_FACES,     /** Used to render a two-faced plane. The two faces have a different color. Not affected by light.*/
+   PROGRAM_WITH_TEXTURED_EDGES, /** Used to render the edges of a textured polyhedorn. Not affected by light.*/
+   PROGRAM_INSTANCED,           /** Used to display instanced rendered spheres.Affected by light.*/
+   PROGRAM_INSTANCED_WIRE,      /** Used to display instanced rendered wired spheres. Not affected by light.*/
+   PROGRAM_C3T3,                /** Used to render a c3t3_item. It discards any fragment on a side of a plane, meaning that nothing is displayed on this side of the plane. Affected by light.*/
+   PROGRAM_C3T3_EDGES,          /** Used to render the edges of a c3t3_item. It discards any fragment on a side of a plane, meaning that nothing is displayed on this side of the plane. Not affected by light.*/
+   PROGRAM_CUTPLANE_SPHERES,    /** Used to render the spheres of an item with a cut plane.*/
+   PROGRAM_SPHERES,             /** Used to render one or several spheres.*/
+   NB_OF_PROGRAMS               /** Holds the number of different programs in this enum.*/
+  };
+
+ //!Returns the viewer's QPainter
+ virtual QPainter *getPainter() =0;
+
+  /*!
+   * \brief textRenderer is used to display text on the screen.
+   * The textRenderer uses the painter tu display 2D text over the 3D Scene. It has a list containing the TextItems to display.
+   */
+  TextRenderer *textRenderer;
+  /*!
+  * \brief testDisplayId checks if the id at position (x,y,z) is visible or not.
+  * \param x the X coordinate of the id's position.
+  * \param y the Y coordinate of the id's position.
+  * \param z the Z coordinate of the id's position.
+  * \return true if the ID is visible. */
+  virtual bool testDisplayId(double x, double y, double z) = 0;
+  //!Returns true if the primitive ids are displayed
+  virtual bool hasText() const { return false; }
 
   Viewer_interface(QWidget* parent) : QGLViewer(CGAL::Qt::createOpenGLContext(), parent) {}
   virtual ~Viewer_interface() {}
@@ -59,7 +93,7 @@ public:
   virtual void setScene(CGAL::Three::Scene_draw_interface* scene) = 0;
   //! @returns the antialiasing state.
   virtual bool antiAliasing() const = 0;
-
+  
   // Those two functions are defined in Viewer.cpp
   //!Sets the position and orientation of a frame using a QString.
   //!@returns true if it worked.
@@ -68,21 +102,18 @@ public:
   static QString dumpFrame(const qglviewer::Frame&);
   //! @returns the fastDrawing state.
   virtual bool inFastDrawing() const = 0;
+  //! @returns if the viewer is in `drawWithNames()`
+  virtual bool inDrawWithNames() const = 0;
 
   /*! Passes all the uniform data to the shaders.
    * According to program_name, this data may change.
+   * @see OpenGL_program_IDs
    */
-  virtual void attrib_buffers(int program_name) const = 0;
+  virtual void attribBuffers(int program_name) const = 0;
 
   /*! Returns a program according to name.
    * If the program does not exist yet, it is created and stored in shader_programs.
-   * name cans be :
-   * - PROGRAM_WITH_LIGHT : used for the facets
-   * - PROGRAM_WITHOUT_LIGHT : used for the points and lines
-   * - PROGRAM_WITH_TEXTURE : used for textured facets
-   * - PROGRAM_WITH_TEXTURED_EDGES : use dfor textured edges
-   * - PROGRAM_INSTANCED : used for items that have to be rendered numerous times(spheres)
-   * - PROGRAM_INSTANCED_WIRE : used for the wireframe mode of PROGRAM_INSTANCED
+   * @see OpenGL_program_IDs
    * @returns a pointer to the corresponding program.*/
   virtual QOpenGLShaderProgram* getShaderProgram(int name) const = 0;
 
@@ -102,7 +133,7 @@ public:
   //! Used by the items to avoid SEGFAULT.
   bool extension_is_found;
   //!The matrix used for the picking.
-  GLfloat pickMatrix_[16];
+  mutable GLfloat pickMatrix_[16];
   //!Sets the binding for SHIFT+LEFT CLICK to SELECT (initially used in Scene_polyhedron_selection_item.h)
   void setBindingSelect()
   {
@@ -123,13 +154,13 @@ public:
   }
 
 Q_SIGNALS:
-  //!Defined automatically in moc.
+  //!Is emitted after an item is picked.
   void selected(int);
-  //!Defined automatically in moc.
+  //!Is emitted to require a contextual menu to appear at global_pos.
   void requestContextMenu(QPoint global_pos);
-  //!Defined automatically in moc.
+  //!Is emitted after a point is selected.
   void selectedPoint(double, double, double);
-  //!Defined automatically in moc.
+  //!Is emitted to request the currently selected item to perform a selection based on an AABB_Tree and a raycasting.
   void selectionRay(double, double, double, double, double, double);
 
 public Q_SLOTS:
@@ -138,6 +169,9 @@ public Q_SLOTS:
   //! If b is true, facets will be ligted from both internal and external sides.
   //! If b is false, only the side that is exposed to the light source will be lighted.
   virtual void setTwoSides(bool b) = 0;
+  //! If b is true, some items are displayed in a simplified version when moving the camera.
+  //! If b is false, items display is never altered, even when moving.
+  virtual void setFastDrawing(bool b) = 0;
   //! Make the camera turn around.
   virtual void turnCameraBy180Degres() = 0;
   //! @returns a QString containing the position and orientation of the camera.

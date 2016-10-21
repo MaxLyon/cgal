@@ -21,6 +21,7 @@
 #define CGAL_POLYLINE_SIMPLIFICATION_2_SCALED_SQUARED_DISTANCE_COST_H
 
 #include <CGAL/algorithm.h>
+#include <CGAL/Constrained_triangulation_plus_2.h>
 
 namespace CGAL {
 
@@ -84,7 +85,7 @@ public:
     FT d2;
     bool d2_uninitialized = true;
 
-    Vertex_circulator vc = (*vicq)->incident_vertices(), done(vc);
+    Vertex_circulator vc = pct.incident_vertices(*vicq), done(vc);
     do {
       if((vc != pct.infinite_vertex()) && (vc != *vicp) && (vc != *vicr)){
         if(d2_uninitialized){

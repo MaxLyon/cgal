@@ -41,21 +41,21 @@ public:
   void print_message(QString message) { messages->information(message);}
   QList<QAction*> actions() const { return QList<QAction*>() << actionFairing; }
 
-  using Polyhedron_demo_plugin_helper::init;
+
   void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface, Messages_interface* m) {
     mw = mainWindow;
     scene = scene_interface;
     messages = m;
-    actionFairing = new QAction(tr("Fairing"), mw);
+    actionFairing = new QAction(tr("Refinement and Fairing"), mw);
     actionFairing->setProperty("subMenuName", "Polygon Mesh Processing");
 
     connect(actionFairing, SIGNAL(triggered()), this, SLOT(fairing_action()));
 
-    dock_widget = new QDockWidget("Fairing", mw);
+    dock_widget = new QDockWidget("Refinement and Fairing", mw);
     dock_widget->setVisible(false);
 
     ui_widget.setupUi(dock_widget);
-    add_dock_widget(dock_widget);
+    addDockWidget(dock_widget);
 
     connect(ui_widget.Fair_button,  SIGNAL(clicked()), this, SLOT(on_Fair_button_clicked()));  
     connect(ui_widget.Refine_button,  SIGNAL(clicked()), this, SLOT(on_Refine_button_clicked()));
@@ -72,7 +72,7 @@ public Q_SLOTS:
   }
 
   void on_Fair_button_clicked() {
-    Scene_polyhedron_selection_item* selection_item = get_selected_item<Scene_polyhedron_selection_item>();
+    Scene_polyhedron_selection_item* selection_item = getSelectedItem<Scene_polyhedron_selection_item>();
     if(!selection_item) { return; }
 
     if(selection_item->selected_vertices.empty()) {
@@ -92,11 +92,12 @@ public Q_SLOTS:
         selection_item->selected_vertices,
         CGAL::Polygon_mesh_processing::parameters::fairing_continuity(continuity));
     selection_item->changed_with_poly_item();
+    selection_item->invalidateOpenGLBuffers();
     QApplication::restoreOverrideCursor();
   }
 
   void on_Refine_button_clicked() {
-    Scene_polyhedron_selection_item* selection_item = get_selected_item<Scene_polyhedron_selection_item>();
+    Scene_polyhedron_selection_item* selection_item = getSelectedItem<Scene_polyhedron_selection_item>();
     if(!selection_item) { return; }
 
     if(selection_item->selected_facets.empty()) {
@@ -116,6 +117,7 @@ public Q_SLOTS:
       selection_item->selected_facets.insert(*it);
     }
     selection_item->changed_with_poly_item();
+    selection_item->invalidateOpenGLBuffers();
     QApplication::restoreOverrideCursor();
   }
 

@@ -21,6 +21,9 @@
 
 #include <CGAL/Delaunay_triangulation_3.h>
 
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+
 #if 1
 struct K : public CGAL::Filtered_kernel<CGAL::Cartesian<double> > {};
 #else
@@ -40,7 +43,7 @@ int my_rand()
 {
   int res;
   do {
-    res = int(CGAL::default_random.get_double()*(1<<31));
+    res = int(CGAL::get_default_random().get_double()*(1<<31));
   } while(res == 0);
 
   return res;
@@ -48,6 +51,11 @@ int my_rand()
 
 int main()
 {
+  assert(  CGAL::Epeck::Has_filtered_predicates);
+  assert(  CGAL::Epick::Has_filtered_predicates);
+  assert(  K::Has_filtered_predicates);
+  assert(  !CGAL::Cartesian<double>::Has_filtered_predicates);
+
   Delaunay3d D;
   for (int i=0; i<100; i++)
     D.insert(K::Point_3(NT(my_rand()), NT(my_rand()), NT(my_rand()),

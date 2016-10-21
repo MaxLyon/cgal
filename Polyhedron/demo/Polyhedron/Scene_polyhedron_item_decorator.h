@@ -29,9 +29,9 @@ public:
   // Indicate if rendering mode is supported
   bool supportsRenderingMode(RenderingMode m) const { return (m!=PointsPlusNormals && m!=Splatting); }
   // Points/Wireframe/Flat/Gouraud OpenGL drawing in a display list
-  // dispatch to poly_item direct_draw and direct_draw_edges
+  // dispatch to poly_item direct_draw and direct_drawEdges
   void draw() const;
-  void draw_edges() const;
+  void drawEdges() const;
 
   // Get wrapped polyhedron
   Polyhedron*       polyhedron();
@@ -49,7 +49,7 @@ public:
   void set_delete_item(bool delete_item) { delete_poly_item = delete_item; }
 
 public Q_SLOTS:
-  void invalidate_buffers();
+  void invalidateOpenGLBuffers();
   void select(double orig_x,
               double orig_y,
               double orig_z,

@@ -39,11 +39,13 @@ class Polyhedron_demo_point_set_simplification_plugin :
   QAction* actionSimplify;
 
 public:
-  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface) {
-    actionSimplify = new QAction(tr("Point set simplification selection"), mainWindow);
-    actionSimplify->setObjectName("actionSimplify");
+  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface,Messages_interface*) {
+    scene = scene_interface;
+    actionSimplify = new QAction(tr("Simplification Selection"), mainWindow);
+    actionSimplify->setProperty("subMenuName","Point Set Processing");
 
-    Polyhedron_demo_plugin_helper::init(mainWindow, scene_interface);
+    actionSimplify->setObjectName("actionSimplify");
+    autoConnectActions();
   }
 
   bool applicable(QAction*) const {
@@ -182,7 +184,7 @@ void Polyhedron_demo_point_set_simplification_plugin::on_actionSimplify_triggere
     points->set_first_selected(first_point_to_remove);
 
     // Updates scene
-    item->invalidate_buffers();
+    item->invalidateOpenGLBuffers();
     scene->itemChanged(index);
 
     QApplication::restoreOverrideCursor();

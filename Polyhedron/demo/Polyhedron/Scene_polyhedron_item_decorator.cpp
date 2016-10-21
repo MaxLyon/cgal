@@ -38,8 +38,8 @@ void Scene_polyhedron_item_decorator::draw() const {
   poly_item->draw();
 }
 
-void Scene_polyhedron_item_decorator::draw_edges() const {
-  poly_item->draw_edges();
+void Scene_polyhedron_item_decorator::drawEdges() const {
+  poly_item->drawEdges();
 }
 
 Polyhedron* 
@@ -63,10 +63,10 @@ Scene_polyhedron_item_decorator::compute_bbox() const {
 
 void
 Scene_polyhedron_item_decorator::
-invalidate_buffers()
+invalidateOpenGLBuffers()
 {
-  poly_item->invalidate_buffers();
-  Scene_item::invalidate_buffers();
+  poly_item->invalidateOpenGLBuffers();
+  Scene_item::invalidateOpenGLBuffers();
   compute_bbox();
 }
 

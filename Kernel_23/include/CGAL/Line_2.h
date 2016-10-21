@@ -29,6 +29,7 @@
 #include <boost/type_traits/is_same.hpp>
 #include <CGAL/Kernel/Return_base_tag.h>
 #include <CGAL/Dimension.h>
+#include <CGAL/IO/io.h>
 
 namespace CGAL {
 
@@ -270,6 +271,7 @@ extract(std::istream& is, Line_2<R>& l)
         read(is, c);
         break;
     default:
+        is.setstate(std::ios::failbit);
         std::cerr << "" << std::endl;
         std::cerr << "Stream must be in ascii or binary mode" << std::endl;
         break;

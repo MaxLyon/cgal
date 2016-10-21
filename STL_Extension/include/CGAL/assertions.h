@@ -31,10 +31,29 @@
 
 // #include <CGAL/assertions_behaviour.h> // for backward compatibility
 
-#ifndef CGAL_NO_ASSERTIONS 
+#ifdef NDEBUG
+#  ifndef CGAL_NDEBUG
+#    define CGAL_NDEBUG
+#  endif
+#endif
+
+// The macro `CGAL_DEBUG` allows to force CGAL assertions, even if `NDEBUG`
+// is defined,
+#ifdef CGAL_DEBUG
+#  ifdef CGAL_NDEBUG
+#    undef CGAL_NDEBUG
+#  endif
+#endif
+
+#ifdef CGAL_NDEBUG
+#  define CGAL_NO_ASSERTIONS
+#  define CGAL_NO_PRECONDITIONS
+#  define CGAL_NO_POSTCONDITIONS
+#  define CGAL_NO_WARNINGS
+#endif
+
 #ifdef CGAL_CFG_NO_CPP0X_STATIC_ASSERT
 #include <boost/static_assert.hpp>
-#endif
 #endif
 
 namespace CGAL {
@@ -65,21 +84,9 @@ inline bool possibly(Uncertain<bool> c);
 // assertions
 // ----------
 
-#ifdef NDEBUG
-#  ifndef CGAL_NDEBUG
-#    define CGAL_NDEBUG
-#  endif
-#endif
-
-#ifdef CGAL_NDEBUG
-#  define CGAL_NO_ASSERTIONS
-#  define CGAL_NO_PRECONDITIONS
-#  define CGAL_NO_POSTCONDITIONS
-#  define CGAL_NO_WARNINGS
-#endif
-
 #if defined(CGAL_NO_ASSERTIONS)
 #  define CGAL_assertion(EX) (static_cast<void>(0))
+#  define CGAL_destructor_assertion(EX) (static_cast<void>(0))
 #  define CGAL_assertion_msg(EX,MSG) (static_cast<void>(0))
 #  define CGAL_assertion_code(CODE)
 #  ifdef CGAL_ASSUME
@@ -92,6 +99,8 @@ inline bool possibly(Uncertain<bool> c);
 #else // no CGAL_NO_ASSERTIONS
 #  define CGAL_assertion(EX) \
    (CGAL::possibly(EX)?(static_cast<void>(0)): ::CGAL::assertion_fail( # EX , __FILE__, __LINE__))
+#  define CGAL_destructor_assertion(EX) \
+   (CGAL::possibly(EX)||std::uncaught_exception()?(static_cast<void>(0)): ::CGAL::assertion_fail( # EX , __FILE__, __LINE__))
 #  define CGAL_assertion_msg(EX,MSG) \
    (CGAL::possibly(EX)?(static_cast<void>(0)): ::CGAL::assertion_fail( # EX , __FILE__, __LINE__, MSG))
 #  define CGAL_assertion_code(CODE) CODE

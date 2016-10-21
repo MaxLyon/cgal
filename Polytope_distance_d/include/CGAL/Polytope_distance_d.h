@@ -21,10 +21,16 @@
 #ifndef CGAL_POLYTOPE_DISTANCE_D_H
 #define CGAL_POLYTOPE_DISTANCE_D_H
 
+#ifdef _MSC_VER
+# pragma warning(push)
+# pragma warning(disable: 4244) // conversion warning in Boost iterator_adaptor
+#endif
+
 // includes
 // --------
 #include <CGAL/Optimisation/basic.h>
 #include <CGAL/function_objects.h>
+#include <boost/functional.hpp>
 
 #include <CGAL/QP_options.h>
 #include <CGAL/QP_solver/QP_solver.h>
@@ -665,7 +671,7 @@ private:
   { return ( std::find_if
 	     ( first, last,
 	       CGAL::compose1_1
-	       ( std::bind2nd(std::not_equal_to<int>(), d),
+	       ( boost::bind2nd(std::not_equal_to<int>(), d),
 		 tco.access_dimension_d_object()))
 	     == last); }
     
@@ -926,6 +932,10 @@ operator << ( std::ostream& os,
 
 
 } //namespace CGAL
+
+#ifdef _MSC_VER
+# pragma warning(pop)
+#endif
 
 #endif // CGAL_POLYTOPE_DISTANCE_D_H
 

@@ -23,6 +23,10 @@
 #define CGAL_CONSTRAINED_VORONOI_DIAGRAM_2_H
 
 #include <utility>
+#include <stack>
+#include <CGAL/iterator.h>
+#include <CGAL/tuple.h>
+#include <CGAL/Kernel/global_functions_2.h>
 
 namespace CGAL {
 
@@ -273,7 +277,7 @@ private:
 
     if(!m_cdt.is_infinite(seed) 
        && !seed->is_blind() 
-       && m_cdt.triangle(seed).area() != 0)
+       && !m_cdt.triangle(seed).is_degenerate() )
        //to avoid flat triangles outside the domain
     {
       std::stack<Face_handle> faces;

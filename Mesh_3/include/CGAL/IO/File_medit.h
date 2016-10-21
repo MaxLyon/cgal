@@ -25,11 +25,15 @@
 #include <CGAL/Mesh_3/config.h>
 
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <set>
 #include <vector>
 #include <string>
 #include <CGAL/utility.h>
+#include <CGAL/basic.h>
+
+#include <boost/unordered_map.hpp>
 
 namespace CGAL {
 
@@ -787,7 +791,7 @@ output_to_medit(std::ostream& os,
   //-------------------------------------------------------
   os << "Vertices\n" << tr.number_of_vertices() << '\n';
 
-  std::map<Vertex_handle, int> V;
+  boost::unordered_map<Vertex_handle, int> V;
   int inum = 1;
   for( Finite_vertices_iterator vit = tr.finite_vertices_begin();
        vit != tr.finite_vertices_end();

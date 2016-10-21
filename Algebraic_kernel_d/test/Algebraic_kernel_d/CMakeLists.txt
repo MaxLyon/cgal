@@ -1,7 +1,7 @@
 # Created by the script cgal_create_CMakeLists
 # This is the CMake script for compiling a set of CGAL applications.
 
-project( Algebraic_kernel_d_test )
+project( Algebraic_kernel_d_Tests )
 
 cmake_minimum_required(VERSION 2.8.11)
 
@@ -43,6 +43,7 @@ include_directories( BEFORE ../../include )
 
 include( CGAL_CreateSingleSourceCGALProgram )
 
+create_single_source_cgal_program( "cyclic.cpp" )
 create_single_source_cgal_program( "Algebraic_curve_kernel_2.cpp" )
 create_single_source_cgal_program( "algebraic_curve_kernel_2_tools.cpp" )
 create_single_source_cgal_program( "Algebraic_kernel_d_1_LEDA.cpp" )

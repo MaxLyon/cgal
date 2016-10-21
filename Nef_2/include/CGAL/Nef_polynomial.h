@@ -22,13 +22,6 @@
 #define CGAL_NEF_POLYNOMIAL_H
 
 #include <CGAL/Nef_2/Polynomial.h>
-//#include <CGAL/basic.h>
-//#include <CGAL/kernel_assertions.h>
-//#include <CGAL/Handle_for.h>
-//#include <CGAL/number_type_basic.h>
-//#include <CGAL/number_utils.h>
-//#include <CGAL/Number_type_traits.h>
-//#include <CGAL/IO/io.h>
 #include <cstddef>
 #undef CGAL_NEF_DEBUG
 #define CGAL_NEF_DEBUG 3
@@ -36,6 +29,7 @@
 #include <vector>
 
 #include <CGAL/Kernel/mpl.h>
+#include <CGAL/tss.h>
 
 #include <boost/operators.hpp>
 
@@ -77,7 +71,7 @@ class Nef_polynomial
   const Base & polynomial() const  { return static_cast<const Base&>(*this); }
 
     static NT& infi_maximal_value() {
-      static NT R_ = 1;
+      CGAL_STATIC_THREAD_LOCAL_VARIABLE(NT, R_, 1);
       return R_;
     }
 };

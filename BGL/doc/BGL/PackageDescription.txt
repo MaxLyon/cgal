@@ -43,6 +43,9 @@
 /// \defgroup PkgBGLIterators Iterators and Circulators
 /// \ingroup PkgBGL
 
+/// \defgroup PkgBGLSelectionFct Selection Functions
+/// \ingroup PkgBGL
+
 /*!
 \addtogroup PkgBGLIterators
 
@@ -113,6 +116,8 @@ user might encounter.
 - \link BGLPolyGT  `boost::graph_traits< CGAL::Polyhedron_3<T> >` \endlink
 - \link BGLT2GT `boost::graph_traits< CGAL::Triangulation_2<GT, TDS> >` \endlink
 - \link BGLArgtGT `boost::graph_traits< CGAL::Arrangement_2<T,DC> >` \endlink
+- \link BGLOMPAK `boost::graph_traits<OpenMesh::PolyMesh_ArrayKernelT<K> >` \endlink
+- \link BGLOMTMAK `boost::graph_traits<OpenMesh::TriMesh_ArrayKernelT<K> >` \endlink
 
 ## Helper Classes ##
 - `CGAL::Triangulation_vertex_base_with_id_2`
@@ -123,6 +128,7 @@ user might encounter.
 - `CGAL::HalfedgeDS_face_max_base_with_id`
 - `CGAL::Polyhedron_items_with_id_3`
 - `CGAL::set_halfedgeds_items_id()`
+- `CGAL::Dual`
 
 ## Helper Functions ##
 - `CGAL::is_border()`
@@ -146,6 +152,9 @@ user might encounter.
 - `CGAL::make_tetrahedron()`
 - `CGAL::make_quad()`
 - `CGAL::make_hexahedron()`
+
+- `CGAL::clear()`
+- `CGAL::copy_face_graph()`
 
 ## Iterators ##
 - `CGAL::Halfedge_around_source_iterator`
@@ -192,6 +201,19 @@ user might encounter.
 - `CGAL::Euler::split_face()`
 - `CGAL::Euler::split_loop()`
 - `CGAL::Euler::split_vertex()`
+
+## Selection ##
+- `CGAL::expand_face_selection()`
+- `CGAL::reduce_face_selection()`
+- `CGAL::expand_edge_selection()`
+- `CGAL::reduce_edge_selection()`
+- `CGAL::expand_vertex_selection()`
+- `CGAL::reduce_vertex_selection()`
+- `CGAL::select_incident_faces()`
+
+## Conversion Functions ##
+- `CGAL::convert_nef_polyhedron_to_polygon_mesh()`
+- `CGAL::split_graph_into_polylines()`
 
 */
 

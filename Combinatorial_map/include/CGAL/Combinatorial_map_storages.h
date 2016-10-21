@@ -23,8 +23,20 @@
 #include <CGAL/Handle_hash_function.h>
 
 #include <CGAL/Compact_container.h>
+#include <bitset>
+
+#include <boost/config.hpp>
+#if  (BOOST_GCC >= 40900)
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
+#endif
 
 namespace CGAL {
+
+  namespace internal {
+    template <typename M>
+    struct Combinatorial_map_helper;
+  }
 
   /** @file Combinatorial_map_storages.h
    * Definition of storages for dD Combinatorial map.
@@ -59,7 +71,7 @@ namespace CGAL {
     typedef typename Dart_container::size_type      size_type;
 
     typedef CGAL::Void* Null_handle_type;
-    static Null_handle_type null_handle;
+    static const Null_handle_type null_handle;
 
     typedef Items_ Items;
     typedef Alloc_ Alloc;
@@ -101,14 +113,8 @@ namespace CGAL {
     // Init
     void init_storage()
     {
-#ifdef CGAL_CMAP_DEPRECATED
-      // We must do this ony once, but problem because null_dart_handle
-      // is static !
-      if ( mnull_dart_container.empty() )
-#endif // CGAL_CMAP_DEPRECATED
-      { // emplace null_dart; initialized in Combinatorial_map class
-        null_dart_handle = mnull_dart_container.emplace();
-      }
+      // emplace null_dart; initialized in Combinatorial_map class
+      null_dart_handle = mnull_dart_container.emplace();
     }
 
    /** Return if this dart is free for adimension.
@@ -363,9 +369,6 @@ namespace CGAL {
 
   public:
     /// Void dart. A dart d is i-free if beta_i(d)=null_dart_handle.
-#ifdef CGAL_CMAP_DEPRECATED
-    static
-#endif // CGAL_CMAP_DEPRECATED
     Dart_handle null_dart_handle; // Todo Dart_const_handle ??
 
   protected:
@@ -373,9 +376,6 @@ namespace CGAL {
     Dart_container mdarts;
 
     /// Container for the null_dart_handle, static data member.
-#ifdef CGAL_CMAP_DEPRECATED
-    static
-#endif // CGAL_CMAP_DEPRECATED
     Dart_container mnull_dart_container;
 
     /// Tuple of attributes containers
@@ -384,26 +384,14 @@ namespace CGAL {
 
   /// null_handle
   template < unsigned int d_, class Items_, class Alloc_ >
-  typename Combinatorial_map_storage_1<d_, Items_, Alloc_>::Null_handle_type
+  const typename Combinatorial_map_storage_1<d_, Items_, Alloc_>::Null_handle_type
   Combinatorial_map_storage_1<d_, Items_, Alloc_>::null_handle = NULL;
-
-#ifdef CGAL_CMAP_DEPRECATED
-  /// Allocation of static data members
-  /// mnull_dart_container
-  template<unsigned int d_, class Items_, class Alloc_ >
-  typename Combinatorial_map_storage_1<d_, Items_, Alloc_>::Dart_container
-  Combinatorial_map_storage_1<d_, Items_, Alloc_>::mnull_dart_container;
-
-  /// null_dart_handle
-  template < unsigned int d_, class Items_, class Alloc_ >
-  typename Combinatorial_map_storage_1<d_, Items_, Alloc_>::Dart_handle
-  Combinatorial_map_storage_1<d_, Items_, Alloc_>::null_dart_handle;
-  // =  mnull_dart_container.emplace( std::bitset<NB_MARKS>() );
-  // Does not work on windows => segfault
-  // Thus we initialize null_dart_handle in the Combinatorial_map constructor
-#endif // CGAL_CMAP_DEPRECATED
 
 } // namespace CGAL
 
-#endif // CGAL_COMBINATORIAL_MAP_H //
+#if  (BOOST_GCC >= 40900)
+ _Pragma("GCC diagnostic pop")
+#endif
+
+#endif // CGAL_COMBINATORIAL_MAP_STORAGES_H //
 // EOF //

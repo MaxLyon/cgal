@@ -12,16 +12,15 @@
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef CGAL::Labeled_image_mesh_domain_3<CGAL::Image_3,K> Mesh_domain;
 
-// Triangulation
 #ifdef CGAL_CONCURRENT_MESH_3
-  typedef CGAL::Mesh_triangulation_3<
-    Mesh_domain,
-    CGAL::Kernel_traits<Mesh_domain>::Kernel, // Same as sequential
-    CGAL::Parallel_tag                        // Tag to activate parallelism
-  >::type Tr;
+typedef CGAL::Parallel_tag Concurrency_tag;
 #else
-  typedef CGAL::Mesh_triangulation_3<Mesh_domain>::type Tr;
+typedef CGAL::Sequential_tag Concurrency_tag;
 #endif
+
+// Triangulation
+typedef CGAL::Mesh_triangulation_3<Mesh_domain,CGAL::Default,Concurrency_tag>::type Tr;
+
 typedef CGAL::Mesh_complex_3_in_triangulation_3<Tr> C3t3;
 
 // Criteria
@@ -30,11 +29,16 @@ typedef CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 // To avoid verbose function and named parameters call
 using namespace CGAL::parameters;
 
-int main()
+int main(int argc, char* argv[])
 {
-  // Loads image
+  /// [Loads image]
+  const char* fname = (argc>1)?argv[1]:"data/liver.inr.gz";
   CGAL::Image_3 image;
-  image.read("data/liver.inr.gz");
+  if(!image.read(fname)){
+    std::cerr << "Error: Cannot read file " <<  fname << std::endl;
+    return EXIT_FAILURE;
+  }
+  /// [Loads image]
 
   // Domain
   Mesh_domain domain(image);
@@ -43,8 +47,9 @@ int main()
   Mesh_criteria criteria(facet_angle=30, facet_size=6, facet_distance=4,
                          cell_radius_edge_ratio=3, cell_size=8);
 
-  // Meshing
+  /// [Meshing]
   C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
+  /// [Meshing]
 
   // Output
   std::ofstream medit_file("out.mesh");

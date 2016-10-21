@@ -26,6 +26,7 @@
 #include <CGAL/Vector_3.h>
 #include <CGAL/Origin.h>
 #include <CGAL/value_type_traits.h>
+#include <CGAL/squared_distance_3.h>
 
 #include <iterator>
 #include <algorithm>
@@ -206,7 +207,7 @@ void Rich_grid<Kernel>::init(std::vector<Rich_point<Kernel> > &vert,
   for(int z = 0; z < z_side; z++) 
   {
     unsigned int end_z = start_z;
-    FT max_z = bbox.zmin() + FT(z+1)*radius;
+    FT max_z = static_cast<FT>(bbox.zmin() + FT(z+1)*radius);
     while(end_z < rich_points.size() && rich_points[end_z]->pt.z() < max_z)
       ++end_z; 
 
@@ -217,7 +218,7 @@ void Rich_grid<Kernel>::init(std::vector<Rich_point<Kernel> > &vert,
     for(int y = 0; y < y_side; y++) 
     {
       unsigned int end_y = start_y;        
-      FT max_y = bbox.ymin() + FT(y+1) * radius;
+      FT max_y = static_cast<FT>(bbox.ymin() + FT(y+1) * radius);
       while(end_y < end_z && rich_points[end_y]->pt.y() < max_y)
         ++end_y;
 
@@ -229,7 +230,7 @@ void Rich_grid<Kernel>::init(std::vector<Rich_point<Kernel> > &vert,
       {
         unsigned int end_x = start_x;
         indices[x + x_side * y + x_side * y_side * z] = end_x;          
-        FT max_x = bbox.xmin() + FT(x+1) * radius;
+        FT max_x = static_cast<FT>(bbox.xmin() + FT(x+1) * radius);
         while(end_x < end_y && rich_points[end_x]->pt.x() < max_x)
           ++end_x;
 
@@ -244,7 +245,7 @@ void Rich_grid<Kernel>::init(std::vector<Rich_point<Kernel> > &vert,
   indices[x_side * y_side * z_side] = start_z;
 }
 
-/// define how to travel in the same gird 
+/// define how to travel in the same grid 
 template <typename Kernel>
 void Rich_grid<Kernel>::travel_itself(
   void (*self)(iterator starta, iterator enda, 
@@ -253,10 +254,10 @@ void Rich_grid<Kernel>::travel_itself(
   iterator startb, iterator endb, FT radius)
 ) 
 {
-  static int corner[8*3] = { 0, 0, 0,  1, 0, 0,  0, 1, 0,  0, 0, 1,
+  static const int corner[8*3] = { 0, 0, 0,  1, 0, 0,  0, 1, 0,  0, 0, 1,
     0, 1, 1,  1, 0, 1,  1, 1, 0,  1, 1, 1 };
 
-  static int diagonals[14*2] = { 0, 0, //remove this to avoid self intesextion
+  static const int diagonals[14*2] = { 0, 0, //remove this to avoid self intesextion
     0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7,
     2, 3, 1, 3, 1, 2,                       
     1, 4, 2, 5, 3, 6 };
@@ -268,8 +269,8 @@ void Rich_grid<Kernel>::travel_itself(
         self(get_start_iter(origin), get_end_iter(origin), radius);   
         // compute between other girds
         for(int d = 2; d < 28; d += 2) { // skipping self
-          int *cs = corner + 3*diagonals[d];
-          int *ce = corner + 3*diagonals[d+1];
+          const int *cs = corner + 3*diagonals[d];
+          const int *ce = corner + 3*diagonals[d+1];
           if((x + cs[0] < x_side) && (y + cs[1] < y_side) && (z + cs[2] < z_side) 
           && (x + ce[0] < x_side) && (y + ce[1] < y_side) && (z + ce[2] < z_side)) 
           {
@@ -293,10 +294,10 @@ void Rich_grid<Kernel>::travel_others(
                         const typename Kernel::FT radius)
 ) 
 {
-  static int corner[8*3] = { 0, 0, 0,  1, 0, 0,  0, 1, 0,  0, 0, 1,
+  static const int corner[8*3] = { 0, 0, 0,  1, 0, 0,  0, 1, 0,  0, 0, 1,
     0, 1, 1,  1, 0, 1,  1, 1, 0,  1, 1, 1 };
 
-  static int diagonals[14*2] = { 0, 0, //remove this to avoid self intesextion
+  static const int diagonals[14*2] = { 0, 0, //remove this to avoid self intesextion
     0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7,
     2, 3, 1, 3, 1, 2,                       
     1, 4, 2, 5, 3, 6 };
@@ -313,8 +314,8 @@ void Rich_grid<Kernel>::travel_others(
 
 
         for(int d = 2; d < 28; d += 2) { //skipping self
-          int *cs = corner + 3*diagonals[d];
-          int *ce = corner + 3*diagonals[d+1];
+          const int *cs = corner + 3*diagonals[d];
+          const int *ce = corner + 3*diagonals[d+1];
           if((x+cs[0] < x_side) && (y+cs[1] < y_side) && (z+cs[2] < z_side) &&
             (x+ce[0] < x_side) && (y+ce[1] < y_side) && (z+ce[2] < z_side)) {
 

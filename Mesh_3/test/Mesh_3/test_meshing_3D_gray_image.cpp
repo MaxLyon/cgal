@@ -32,6 +32,16 @@
 // To avoid verbose function and named parameters call
 using namespace CGAL::parameters;
 
+template<typename T>
+struct Greater_than {
+  typedef T argument_type;
+  Greater_than(const T& second) : second(second) {}
+  bool operator()(const T& first) const {
+    return std::greater<T>()(first, second);
+  }
+  T second;
+};
+
 template <typename Concurrency_tag = CGAL::Sequential_tag>
 struct Image_tester : public Tester<K_e_i>
 {
@@ -44,7 +54,7 @@ public:
       Image,
       K_e_i,
       Image_word_type,
-      std::binder1st< std::less<Image_word_type> > >    Mesh_domain;
+      Greater_than<double> >                            Mesh_domain;
 
     typedef typename CGAL::Mesh_triangulation_3<
       Mesh_domain,
@@ -66,24 +76,32 @@ public:
     }
 
     std::cout << "\tSeed is\t"
-      << CGAL::default_random.get_seed() << std::endl;
+              << CGAL::get_default_random().get_seed() << std::endl;
 
     // Domain
     Mesh_domain domain(image,
-      std::bind1st(std::less<Image_word_type>(), 2.9f),//transform
+      2.9f, //isovalue
       0.f,  //value_outside
       1e-3, //error_bound
-      &CGAL::default_random);//random generator for determinism
+      &CGAL::get_default_random());//random generator for determinism
+
+    const CGAL::Mesh_facet_topology topology =
+      boost::is_same<Concurrency_tag, CGAL::Sequential_tag>::value ?
+      CGAL::MANIFOLD :
+      CGAL::FACET_VERTICES_ON_SURFACE;
 
     // Mesh criteria
     Mesh_criteria criteria(facet_angle = 30,
                            facet_size = 6,
                            facet_distance = 2,
+                           facet_topology = topology,
                            cell_radius_edge_ratio = 3,
                            cell_size = 8);
 
     // Mesh generation
     C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria,
+                                        no_perturb(),
+                                        no_exude(),
       mesh_3_options(number_of_initial_points = 30));
 
     // Verify

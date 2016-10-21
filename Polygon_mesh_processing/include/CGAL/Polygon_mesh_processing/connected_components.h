@@ -25,6 +25,7 @@
 #include<vector>
 
 #include <CGAL/boost/graph/named_function_params.h>
+#include <CGAL/boost/graph/helpers.h>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/foreach.hpp>
 #include <boost/graph/filtered_graph.hpp>
@@ -429,7 +430,6 @@ connected_component(typename boost::graph_traits<PolygonMesh>::face_descriptor s
                     , const NamedParameters& np)
 {
   using boost::choose_param;
-  using boost::choose_const_pmap;
   using boost::get_param;
 
   typedef typename boost::lookup_named_param_def <
@@ -506,11 +506,10 @@ template <typename PolygonMesh
 >
 typename boost::property_traits<FaceComponentMap>::value_type
 connected_components(const PolygonMesh& pmesh,
-                     const FaceComponentMap& fcm,
+                     FaceComponentMap fcm,
                      const NamedParameters& np)
 {
   using boost::choose_param;
-  using boost::choose_const_pmap;
   using boost::get_param;
 
   typedef typename boost::lookup_named_param_def <
@@ -519,7 +518,8 @@ connected_components(const PolygonMesh& pmesh,
     internal::No_constraint<PolygonMesh>//default
   > ::type                                               EdgeConstraintMap;
   EdgeConstraintMap ecmap
-    = choose_param(get_param(np, edge_is_constrained), EdgeConstraintMap());
+    = choose_param(get_param(np, edge_is_constrained),
+                   internal::No_constraint<PolygonMesh>());
 
   typedef Dual<PolygonMesh>                              Dual;
   typedef boost::filtered_graph<Dual,
@@ -529,20 +529,20 @@ connected_components(const PolygonMesh& pmesh,
   FiniteDual finite_dual(dual,
     internal::No_border<PolygonMesh, EdgeConstraintMap>(pmesh, ecmap));
 
+  typename GetFaceIndexMap<PolygonMesh, NamedParameters>::const_type
+    fimap = choose_param(get_param(np, face_index),
+                         get_const_property_map(face_index, pmesh));
+
   return boost::connected_components(finite_dual,
     fcm,
-    boost::vertex_index_map(
-      choose_const_pmap(get_param(np, boost::face_index),
-                        pmesh,
-                        boost::face_index)
-    )
+    boost::vertex_index_map(fimap)
   );
 }
 
 template <typename PolygonMesh, typename FaceComponentMap>
 typename boost::property_traits<FaceComponentMap>::value_type
 connected_components(const PolygonMesh& pmesh,
-                     const FaceComponentMap& fcm)
+                     FaceComponentMap fcm)
 {
 
   return CGAL::Polygon_mesh_processing::connected_components(pmesh, fcm,
@@ -568,7 +568,7 @@ void keep_connected_components(PolygonMesh& pmesh
  * should be either available as internal property maps 
  * to `pmesh` or provided as \ref namedparameters.
  *
- * \tparam PolygonMesh a model of `FaceListGraph`
+ * \tparam PolygonMesh a model of `FaceListGraph` and `MutableFaceGraph`
  * \tparam NamedParameters a sequence of \ref namedparameters
  *
  * \param pmesh the polygon mesh
@@ -594,17 +594,23 @@ std::size_t keep_largest_connected_components(PolygonMesh& pmesh
 
   using boost::choose_param;
   using boost::get_param;
-  using boost::choose_const_pmap;
 
   //FaceIndexMap
   typedef typename GetFaceIndexMap<PM, NamedParameters>::type FaceIndexMap;
-  FaceIndexMap fim = choose_const_pmap(get_param(np, boost::face_index),
-                                       pmesh,
-                                       boost::face_index);
+  FaceIndexMap fimap = choose_param(get_param(np, boost::face_index),
+                                    get_property_map(boost::face_index, pmesh));
 
   //vector_property_map
-  boost::vector_property_map<std::size_t, FaceIndexMap> face_cc(fim);
+  boost::vector_property_map<std::size_t, FaceIndexMap> face_cc(fimap);
   std::size_t num = connected_components(pmesh, face_cc, np);
+
+  // Even even we do not want to keep anything we need to first
+  // calculate the number of existing connected_components to get the
+  // correct return value.
+  if(nb_components_to_keep == 0) {
+    CGAL::clear(pmesh);
+    return num;
+  }
 
   if((num == 1)|| (nb_components_to_keep > num) )
     return 0;
@@ -645,7 +651,7 @@ std::size_t keep_largest_connected_components(PolygonMesh& pmesh,
  * should be either available as internal property maps 
  * to `pmesh` or provided as \ref namedparameters.
  *
- * \tparam PolygonMesh a model of `FaceListGraph`
+ * \tparam PolygonMesh a model of `FaceListGraph` and `MutableFaceGraph`
  * \tparam NamedParameters a sequence of \ref namedparameters
  *
  * \param pmesh the polygon mesh
@@ -671,13 +677,11 @@ std::size_t keep_large_connected_components(PolygonMesh& pmesh
 
   using boost::choose_param;
   using boost::get_param;
-  using boost::choose_const_pmap;
 
   //FaceIndexMap
   typedef typename GetFaceIndexMap<PM, NamedParameters>::type FaceIndexMap;
-  FaceIndexMap fim = choose_const_pmap(get_param(np, boost::face_index),
-                                       pmesh,
-                                       boost::face_index);
+  FaceIndexMap fim = choose_param(get_param(np, boost::face_index),
+                                  get_property_map(boost::face_index, pmesh));
 
   //vector_property_map
   boost::vector_property_map<std::size_t, FaceIndexMap> face_cc(fim);
@@ -727,7 +731,6 @@ void keep_or_remove_connected_components(PolygonMesh& pmesh
   typedef PolygonMesh PM;
   using boost::choose_param;
   using boost::get_param;
-  using boost::choose_const_pmap;
 
   typedef typename boost::graph_traits<PolygonMesh>::face_descriptor   face_descriptor;
   typedef typename boost::graph_traits<PolygonMesh>::face_iterator     face_iterator;
@@ -739,9 +742,8 @@ void keep_or_remove_connected_components(PolygonMesh& pmesh
 
   //VertexIndexMap
   typedef typename GetVertexIndexMap<PM, NamedParameters>::type VertexIndexMap;
-  VertexIndexMap vim = choose_const_pmap(get_param(np, boost::vertex_index),
-                                         pmesh,
-                                         boost::vertex_index);
+  VertexIndexMap vim = choose_param(get_param(np, boost::vertex_index),
+                                    get_const_property_map(boost::vertex_index, pmesh));
 
   std::set<std::size_t> cc_to_keep;
   BOOST_FOREACH(std::size_t i, components_to_keep)
@@ -864,7 +866,7 @@ void keep_or_remove_connected_components(PolygonMesh& pmesh
 * should be either available as internal property map
 * to `pmesh` or provided as \ref namedparameters.
 *
-* \tparam PolygonMesh a model of `FaceListGraph`
+* \tparam PolygonMesh a model of `FaceListGraph` and `MutableFaceGraph`
 * \tparam NamedParameters a sequence of \ref namedparameters
 * \tparam ComponentRange a range of ids convertible to `std::size`
 * \tparam FaceComponentMap a model of `ReadWritePropertyMap` with
@@ -908,7 +910,7 @@ void keep_connected_components(PolygonMesh& pmesh
 * to `pmesh` or provided as \ref namedparameters.
 *
 *
-* \tparam PolygonMesh a model of `FaceListGraph`
+* \tparam PolygonMesh a model of `FaceListGraph` and `MutableFaceGraph`
 * \tparam NamedParameters a sequence of \ref namedparameters
 * \tparam ComponentRange a range of ids convertible to `std::size`
 * \tparam FaceComponentMap a model of `ReadWritePropertyMap` with
@@ -951,7 +953,7 @@ void remove_connected_components(PolygonMesh& pmesh
 * \note If the removal of the connected components makes `pmesh` a non-manifold surface,
 * then the behavior of this function is undefined.
 *
-* \tparam PolygonMesh a model of `FaceListGraph`
+* \tparam PolygonMesh a model of `FaceListGraph` and `MutableFaceGraph`
 * \tparam NamedParameters a sequence of \ref namedparameters
 * \tparam FaceRange a range of `boost::graph_traits<PolygonMesh>::%face_descriptor`
 *         indicating the connected components to be removed.
@@ -979,13 +981,11 @@ void remove_connected_components(PolygonMesh& pmesh
   typedef typename boost::graph_traits<PM>::face_descriptor face_descriptor;
   using boost::choose_param;
   using boost::get_param;
-  using boost::choose_const_pmap;
 
   //FaceIndexMap
   typedef typename GetFaceIndexMap<PM, CGAL_PMP_NP_CLASS>::type FaceIndexMap;
-  FaceIndexMap fim = choose_const_pmap(get_param(np, boost::face_index),
-                                       pmesh,
-                                       boost::face_index);
+  FaceIndexMap fim = choose_param(get_param(np, boost::face_index),
+                                  get_property_map(boost::face_index, pmesh));
 
   //vector_property_map
   boost::vector_property_map<std::size_t, FaceIndexMap> face_cc(fim);
@@ -1011,7 +1011,7 @@ void remove_connected_components(PolygonMesh& pmesh
 * \note If the removal of the connected components makes `pmesh` a non-manifold surface,
 * then the behavior of this function is undefined.
 *
-* \tparam PolygonMesh a model of `FaceListGraph`
+* \tparam PolygonMesh a model of `FaceListGraph` and `MutableFaceGraph`
 * \tparam NamedParameters a sequence of \ref namedparameters
 * \tparam FaceRange a range of `boost::graph_traits<PolygonMesh>::%face_descriptor`
 *         indicating the connected components to be kept.
@@ -1039,13 +1039,11 @@ void keep_connected_components(PolygonMesh& pmesh
 
   using boost::choose_param;
   using boost::get_param;
-  using boost::choose_const_pmap;
 
   //FaceIndexMap
   typedef typename GetFaceIndexMap<PM, CGAL_PMP_NP_CLASS>::type FaceIndexMap;
-  FaceIndexMap fim = choose_const_pmap(get_param(np, boost::face_index),
-                                       pmesh,
-                                       boost::face_index);
+  FaceIndexMap fim = choose_param(get_param(np, boost::face_index),
+                                  get_property_map(boost::face_index, pmesh));
 
   //vector_property_map
   boost::vector_property_map<std::size_t, FaceIndexMap> face_cc(fim);

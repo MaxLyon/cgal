@@ -154,9 +154,6 @@ namespace CGAL {
     /// test if adart->beta(ai) exists and is not marked for amark
     bool is_unmarked(Dart_handle adart, unsigned int ai, size_type amark) const
     { return
-#ifdef CGAL_CMAP_DEPRECATED
-        !mmap->is_free(adart,ai) && // Pb with static null_dart_handle for windows
-#endif // CGAL_CMAP_DEPRECATED
         !mmap->is_marked(mmap->beta(adart,ai), amark);
     }
 
@@ -168,9 +165,6 @@ namespace CGAL {
     bool is_unmarked2(Dart_handle adart, unsigned int ai, unsigned int aj,
                       typename Map::size_type amark) const
     { return
-#ifdef CGAL_CMAP_DEPRECATED
-         exist_betaij(adart, ai, aj) && // Pb with static null_dart_handle for windows
-#endif // CGAL_CMAP_DEPRECATED
         !mmap->is_marked(mmap->beta(adart, ai, aj), amark);
     }
 
@@ -222,7 +216,6 @@ namespace CGAL {
             this->mmap->beta(minitial_dart, Bi)!=minitial_dart )
         {
           mto_treat.push(this->mmap->beta(minitial_dart, Bi));
-          this->mmap->mark(this->mmap->beta(minitial_dart, Bi), mmark_number);
         }
       }
     }
@@ -239,7 +232,6 @@ namespace CGAL {
           this->mmap->beta(minitial_dart, Bi)!=minitial_dart)
       {
         mto_treat.push(this->mmap->beta(minitial_dart, Bi));
-        this->mmap->mark(this->mmap->beta(minitial_dart, Bi), mmark_number);
       }
     }
 
@@ -258,21 +250,24 @@ namespace CGAL {
 
       if ( !this->cont() )
       {
+        while ( !mto_treat.empty() &&
+                this->mmap->is_marked(mto_treat.front(), mmark_number))
+        {
+          mto_treat.pop();
+        }
+
         if ( !mto_treat.empty() )
         {
           Base::operator= ( Base(*this->mmap,mto_treat.front()) );
           mto_treat.pop();
           this->mprev_op = OP_POP;
-          CGAL_assertion( this->mmap->is_marked((*this), mmark_number) );
+          CGAL_assertion( !this->mmap->is_marked((*this), mmark_number) );
+          this->mmap->mark((*this), mmark_number);
 
           if (
-#ifdef CGAL_CMAP_DEPRECATED
-        !this->mmap->is_free(*this, Bi) && // Pb with static null_dart_handle for windows
-#endif // CGAL_CMAP_DEPRECATED
                !this->mmap->is_marked(this->mmap->beta(*this, Bi), mmark_number) )
           {
             mto_treat.push(this->mmap->beta(*this, Bi));
-            this->mmap->mark(this->mmap->beta(*this, Bi), mmark_number);
           }
         }
       }
@@ -280,13 +275,9 @@ namespace CGAL {
       {
         this->mmap->mark((*this), mmark_number);
         if (
-#ifdef CGAL_CMAP_DEPRECATED
-        !this->mmap->is_free(*this, Bi) && // Pb with static null_dart_handle for windows
-#endif // CGAL_CMAP_DEPRECATED
              !this->mmap->is_marked(this->mmap->beta(*this, Bi), mmark_number) )
         {
           mto_treat.push(this->mmap->beta(*this, Bi));
-          this->mmap->mark(this->mmap->beta(*this, Bi), mmark_number);
         }
       }
 
@@ -335,7 +326,6 @@ namespace CGAL {
            this->mmap->beta(this->minitial_dart, Bi)!=this->minitial_dart )
       {
         this->mto_treat.push(this->mmap->beta(this->minitial_dart, Bi));
-        this->mmap->mark(this->mmap->beta(this->minitial_dart, Bi), this->mmark_number);
       }
     }
 
@@ -348,7 +338,6 @@ namespace CGAL {
            this->mmap->beta(this->minitial_dart, Bi)!=this->minitial_dart )
       {
         this->mto_treat.push(this->mmap->beta(this->minitial_dart, Bi));
-        this->mmap->mark(this->mmap->beta(this->minitial_dart, Bi), this->mmark_number);
       }
     }
 
@@ -362,13 +351,9 @@ namespace CGAL {
         CGAL_assertion( this->mmap->is_marked(*this, this->mmark_number) );
 
         if (
-#ifdef CGAL_CMAP_DEPRECATED
-            !this->mmap->is_free(*this, Bi) && // Pb with static null_dart_handle for windows
-#endif // CGAL_CMAP_DEPRECATED
             !this->mmap->is_marked(this->mmap->beta(*this, Bi), this->mmark_number) )
         {
           this->mto_treat.push(this->mmap->beta(*this, Bi));
-          this->mmap->mark(this->mmap->beta(*this, Bi), this->mmark_number);
         }
       }
       return *this;
@@ -410,9 +395,9 @@ namespace CGAL {
     {}
 
     /// Destructor.
-    ~CMap_non_basic_iterator()
+    ~CMap_non_basic_iterator() CGAL_NOEXCEPT(CGAL_NO_ASSERTIONS_BOOL)
     {
-      CGAL_assertion( this->mmark_number!=Map::INVALID_MARK );
+      CGAL_destructor_assertion( this->mmark_number!=Map::INVALID_MARK );
       if (this->mmap->get_number_of_times_mark_reserved
           (this->mmark_number)==1)
         unmark_treated_darts();

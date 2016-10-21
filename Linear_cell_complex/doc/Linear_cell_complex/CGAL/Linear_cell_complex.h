@@ -40,8 +40,6 @@ inherit from any model of the `CombinatorialMap` concept.
 \sa `LinearCellComplexTraits`
 \sa `CGAL::Linear_cell_complex_traits<d,K>`
 
-\deprecated Since \cgal 4.4, `vertex_attribute` and `point` methods are no more static. You can define the `CGAL_CMAP_DEPRECATED` macro to keep the old behavior.
-
 */
 template< typename d, typename d2, typename LCCTraits, typename Items, typename Alloc >
 class Linear_cell_complex  : public Combinatorial_map<d,Items,Alloc>
@@ -287,7 +285,7 @@ template<unsigned int i> Point barycenter(Dart_const_handle dh) const;
 /*!
 Inserts a point, copy of `p`, in the <I>i</I>-cell containing `dh`.
 Returns a handle on one dart of this cell.
-\pre <I>i</I>\f$ \leq\f$\ref CombinatorialMap::dimension "dimension"\f$ \leq\f$2 and `*dh`\f$ \in\f$\ref CombinatorialMap::darts "darts()".
+\pre <I>i</I>\f$ \leq\f$\ref CombinatorialMap::dimension "dimension"\f$ \leq\f$ 2 and `*dh`\f$ \in\f$\ref CombinatorialMap::darts "darts()".
 
 If \link CombinatorialMap::are_attributes_automatically_managed `are_attributes_automatically_managed()`\endlink`==true`,
 if <I>i</I>-attributes are non void,
@@ -306,7 +304,7 @@ template <unsigned int i> Dart_handle insert_point_in_cell(Dart_handle dh, Point
 /*!
 Inserts a point in the barycenter of the <I>i</I>-cell containing `dh`.
 Returns a handle on one dart of this cell.
-\pre <I>i</I>\f$ \leq\f$\ref CombinatorialMap::dimension "dimension"\f$ \leq\f$2 and `*dh`\f$ \in\f$\ref CombinatorialMap::darts "darts()".
+\pre <I>i</I>\f$ \leq\f$\ref CombinatorialMap::dimension "dimension"\f$ \leq\f$ 2 and `*dh`\f$ \in\f$\ref CombinatorialMap::darts "darts()".
 
 If \link CombinatorialMap::are_attributes_automatically_managed `are_attributes_automatically_managed()`\endlink`==true`,
 if <I>i</I>-attributes are non void,

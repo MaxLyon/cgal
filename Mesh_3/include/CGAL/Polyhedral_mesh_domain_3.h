@@ -56,6 +56,10 @@
 # include <tbb/enumerable_thread_specific.h>
 #endif
 
+// To handle I/O for Surface_patch_index if that is a pair of `int` (the
+// default)
+#include <CGAL/internal/Mesh_3/Handle_IO_for_pair_of_int.h>
+
 namespace CGAL {
 
 namespace Mesh_3 {
@@ -287,9 +291,13 @@ public:
                    TriangleAccessor().triangles_end(bounding_polyhedron));
       tree_.build();
       bounding_tree_ =
+        bounding_polyhedron.empty() ?
+        0 :
         new AABB_tree_(TriangleAccessor().triangles_begin(bounding_polyhedron),
                        TriangleAccessor().triangles_end(bounding_polyhedron));
-      bounding_tree_->build();
+      if(!bounding_polyhedron.empty()) {
+        bounding_tree_->build();
+      }
     }
     else {
       tree_.rebuild(TriangleAccessor().triangles_begin(bounding_polyhedron),
@@ -364,6 +372,14 @@ public:
   Construct_initial_points construct_initial_points_object() const
   {
     return Construct_initial_points(*this);
+  }
+
+
+  /**
+   * Returns a bounding box of the domain
+   */
+  Bbox_3 bbox() const {
+    return tree_.bbox();
   }
 
 
@@ -474,7 +490,8 @@ public:
 #endif // not CGAL_MESH_3_NO_LONGER_CALLS_DO_INTERSECT_3
       {
 #ifndef CGAL_MESH_3_NO_LONGER_CALLS_DO_INTERSECT_3
-        CGAL_precondition(r_domain_.do_intersect_surface_object()(q));
+        CGAL_precondition(r_domain_.do_intersect_surface_object()(q)
+                          != boost::none);
 #endif // NOT CGAL_MESH_3_NO_LONGER_CALLS_DO_INTERSECT_3
 
         intersection = r_domain_.tree_.any_intersection(q);

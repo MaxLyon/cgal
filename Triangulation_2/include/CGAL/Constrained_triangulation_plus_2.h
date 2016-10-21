@@ -31,6 +31,12 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_2/insert_constraints.h>
 
+#if defined(BOOST_MSVC) && (BOOST_VERSION == 105500)
+#include <set>
+#else
+#include <boost/container/flat_set.hpp>
+#endif
+
 #if defined(BOOST_MSVC)
 #  pragma warning(push)
 #  pragma warning(disable:4355)
@@ -216,7 +222,7 @@ public:
   }
 
 
-  Constrained_triangulation_plus_2(std::list<std::pair<Point,Point> > constraints,
+  Constrained_triangulation_plus_2(const std::list<std::pair<Point,Point> > &constraints,
 				   const Geom_traits& gt=Geom_traits() )
     : Triangulation(gt)
      , hierarchy(Vh_less_xy(this))
@@ -253,6 +259,10 @@ public:
   
   Constraint_id insert_constraint(Vertex_handle va, Vertex_handle vb)
   {
+    // protects against inserting a zero length constraint
+    if(va == vb){
+    return Constraint_id(NULL);
+    }
     // protects against inserting twice the same constraint
     Constraint_id cid = hierarchy.insert_constraint(va, vb);
     if (va != vb && (cid != Constraint_id(NULL)) )  insert_subconstraint(va,vb); 
@@ -585,6 +595,10 @@ public:
   typename Constrained_triangulation_plus_2<Tr>::Constraint_id
   insert_constraint(Vertex_handle va, Vertex_handle vb, OutputIterator out)
   {
+    // protects against inserting a zero length constraint
+    if(va == vb){
+    return Constraint_id(NULL);
+    }
     // protects against inserting twice the same constraint
     Constraint_id cid = hierarchy.insert_constraint(va, vb);
     if (va != vb && (cid != NULL) )  insert_subconstraint(va,vb,out); 
@@ -650,13 +664,16 @@ public:
   {
     Vertices_in_constraint_iterator u = boost::prior(v);
     Vertices_in_constraint_iterator w = boost::next(v);
+    bool unew = (*u != *w);
     hierarchy.simplify(u,v,w);
     
     Triangulation::remove_incident_constraints(*v);
   
     Triangulation::remove(*v);
   
-    Triangulation::insert_constraint(*u, *w);
+    if(unew){
+      Triangulation::insert_constraint(*u, *w);
+    }
   }
 
   std::size_t remove_points_without_corresponding_vertex(Constraint_id cid)
@@ -798,23 +815,20 @@ insert_subconstraint(Vertex_handle vaa,
   // edges may contain mirror edges. They no longer exist after triangulate_hole
   // so we have to remove them before calling get_bounded_faces
   if(! edges.empty()){
-    typename List_edges::iterator it, it2;
-    
-    it = edges.begin();
-    it2 = it;
-    ++it2;
-    for(; it2 != edges.end();){
-      Edge e1 = *it, e2 = *it2;
-      if(this->mirror_edge(e1) == e2){
-        typename List_edges::iterator del = it;
-        --it;
-        edges.erase(del);
-        edges.erase(it2);
-        it2 = it;
-        ++it2;
-      } else {
+
+#if defined(BOOST_MSVC) && (BOOST_VERSION == 105500)
+    std::set<Face_handle> faces(intersected_faces.begin(), intersected_faces.end());
+#else
+    boost::container::flat_set<Face_handle> faces(intersected_faces.begin(), intersected_faces.end());
+#endif
+    typename List_edges::iterator it2;
+    for(typename List_edges::iterator it = edges.begin(); it!= edges.end();){
+      if(faces.find(it->first) != faces.end()){
+        typename List_edges::iterator it2 = it;
         ++it;
-        ++it2;
+        edges.erase(it2);
+      }else {
+        ++it;
       }
     }
   }

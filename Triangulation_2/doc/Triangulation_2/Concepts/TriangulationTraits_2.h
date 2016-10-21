@@ -11,7 +11,6 @@ triangulation and some function object types for the required
 predicates on those primitives.
 
 \cgalHasModel All the \cgal Kernels 
-\cgalHasModel `CGAL::Triangulation_euclidean_traits_2<K>`
 \cgalHasModel `CGAL::Projection_traits_xy_3<K>`
 \cgalHasModel `CGAL::Projection_traits_yz_3<K>`
 \cgalHasModel `CGAL::Projection_traits_xz_3<K>`
@@ -201,12 +200,12 @@ Construct_triangle_2 construct_triangle_2_object();
 /*!
 
 */ 
-Comparison_x_2 compare_x_2_object(); 
+Compare_x_2 compare_x_2_object(); 
 
 /*!
 
 */ 
-Comparison_y_2 compare_y_2_object(); 
+Compare_y_2 compare_y_2_object(); 
 
 /*!
 

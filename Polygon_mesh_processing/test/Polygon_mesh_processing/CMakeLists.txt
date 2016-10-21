@@ -1,7 +1,7 @@
 # Created by the script cgal_create_CMakeLists
 # This is the CMake script for compiling a set of CGAL applications.
 
-project( Polygon_mesh_processing )
+project( Polygon_mesh_processing_Tests )
 
 
 cmake_minimum_required(VERSION 2.6.2)
@@ -13,8 +13,6 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" VERSION_GREATER 2.6)
   endif()
 endif()
 
-set( CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true )
- 
 if ( COMMAND cmake_policy )
 
   cmake_policy( SET CMP0003 NEW )  
@@ -72,12 +70,12 @@ if (EIGEN3_FOUND)
   create_single_source_cgal_program("polygon_mesh_slicer_test.cpp" )
   create_single_source_cgal_program("self_intersection_polyhedron_test.cpp" )
   create_single_source_cgal_program("self_intersection_surface_mesh_test.cpp" )
-  create_single_source_cgal_program("test_orient_polygon_soup.cpp")
+  create_single_source_cgal_program("test_is_polygon_soup_a_polygon_mesh.cpp")
   create_single_source_cgal_program("test_stitching.cpp")
-  create_single_source_cgal_program("remove_degeneracies_test.cpp")
   create_single_source_cgal_program("test_pmp_bgl_named_params.cpp")
   create_single_source_cgal_program("remeshing_test.cpp" )
   create_single_source_cgal_program("measures_test.cpp")
+  create_single_source_cgal_program("triangulate_faces_test.cpp")
 
 if(NOT (${EIGEN3_VERSION} VERSION_LESS 3.2.0))
   create_single_source_cgal_program("fairing_test.cpp")

@@ -33,6 +33,8 @@
 
 #include <boost/tuple/tuple.hpp>
 
+#include <vector>
+
 namespace CGAL {
 
 namespace Polygon_mesh_processing {
@@ -40,12 +42,12 @@ namespace Polygon_mesh_processing {
   /*!
   \ingroup hole_filling_grp
   triangulates a hole in a polygon mesh.
-  The hole must not contain any non-manifold vertex.
+  The hole must not contain any non-manifold vertex,
+  nor self-intersections.
   The patch generated does not introduce non-manifold edges nor degenerate triangles.
   If a hole cannot be triangulated, `pmesh` is not modified and nothing is recorded in `out`.
 
   @tparam PolygonMesh a model of `MutableFaceGraph`
-          that has an internal property map for `CGAL::vertex_point_t`
   @tparam OutputIterator a model of `OutputIterator`
     holding `boost::graph_traits<PolygonMesh>::%face_descriptor` for patch faces.
   @tparam NamedParameters a sequence of \ref namedparameters
@@ -56,7 +58,9 @@ namespace Polygon_mesh_processing {
   @param np optional sequence of \ref namedparameters among the ones listed below
 
   \cgalNamedParamsBegin
-     \cgalParamBegin{vertex_point_map} the property map with the points associated to the vertices of `pmesh` \cgalParamEnd
+     \cgalParamBegin{vertex_point_map} the property map with the points associated to the vertices of `pmesh`.
+         If this parameter is omitted, an internal property map for
+         `CGAL::vertex_point_t` should be available in `PolygonMesh`\cgalParamEnd
      \cgalParamBegin{use_delaunay_triangulation} if `true`, use the Delaunay triangulation facet search space \cgalParamEnd
      \cgalParamBegin{geom_traits} a geometric traits class instance \cgalParamEnd
   \cgalNamedParamsEnd
@@ -95,7 +99,7 @@ namespace Polygon_mesh_processing {
     return internal::triangulate_hole_polygon_mesh(pmesh,
       border_halfedge,
       out,
-      choose_param(get_param(np, vertex_point), get(CGAL::vertex_point, pmesh)),
+      choose_param(get_param(np, vertex_point), get_property_map(vertex_point, pmesh)),
       use_dt3,
       choose_param(get_param(np, geom_traits), typename GetGeomTraits<PolygonMesh,NamedParameters>::type()))
       .first;
@@ -132,7 +136,6 @@ namespace Polygon_mesh_processing {
   @brief triangulates and refines a hole in a polygon mesh.
 
   @tparam PolygonMesh must be model of `MutableFaceGraph`
-          that has an internal property map for `CGAL::vertex_point_t`
   @tparam FacetOutputIterator model of `OutputIterator`
      holding `boost::graph_traits<PolygonMesh>::%face_descriptor` for patch faces.
   @tparam VertexOutputIterator model of `OutputIterator`
@@ -146,7 +149,9 @@ namespace Polygon_mesh_processing {
   @param np optional sequence of \ref namedparameters among the ones listed below
 
   \cgalNamedParamsBegin
-     \cgalParamBegin{vertex_point_map} the property map with the points associated to the vertices of `pmesh` \cgalParamEnd
+     \cgalParamBegin{vertex_point_map} the property map with the points associated to the vertices of `pmesh`.
+         If this parameter is omitted, an internal property map for
+         `CGAL::vertex_point_t` should be available in `PolygonMesh`\cgalParamEnd
      \cgalParamBegin{density_control_factor} factor to control density of the ouput mesh, where larger values cause denser refinements, as in `refine()` \cgalParamEnd
      \cgalParamBegin{use_delaunay_triangulation} if `true`, use the Delaunay triangulation facet search space \cgalParamEnd
      \cgalParamBegin{geom_traits} a geometric traits class instance \cgalParamEnd
@@ -198,7 +203,6 @@ namespace Polygon_mesh_processing {
   @brief triangulates, refines and fairs a hole in a polygon mesh.
 
   @tparam PolygonMesh a model of `MutableFaceGraph`
-          that has an internal property map for `CGAL::vertex_point_t`
   @tparam FaceOutputIterator model of `OutputIterator`
       holding `boost::graph_traits<PolygonMesh>::%face_descriptor` for patch faces
   @tparam VertexOutputIterator model of `OutputIterator`
@@ -212,7 +216,10 @@ namespace Polygon_mesh_processing {
   @param np optional sequence of \ref namedparameters among the ones listed below
 
   \cgalNamedParamsBegin
-     \cgalParamBegin{vertex_point_map} the property map with the points associated to the vertices of `pmesh` \cgalParamEnd
+     \cgalParamBegin{vertex_point_map} the property map with the points associated to the vertices of `pmesh`.
+         If this parameter is omitted, an internal property map for
+         `CGAL::vertex_point_t` should be available in `PolygonMesh`
+         \cgalParamEnd
      \cgalParamBegin{use_delaunay_triangulation} if `true`, use the Delaunay triangulation facet search space \cgalParamEnd
      \cgalParamBegin{density_control_factor} factor to control density of the ouput mesh, where larger values cause denser refinements, as in `refine()` \cgalParamEnd
      \cgalParamBegin{fairing_continuity} tangential continuity of the output surface patch \cgalParamEnd
@@ -312,12 +319,13 @@ namespace Polygon_mesh_processing {
 
   \todo handle islands
   */
-  template <typename PointRange,
+  template <typename PointRange1,
+            typename PointRange2,
             typename OutputIterator,
             typename NamedParameters>
   OutputIterator
-  triangulate_hole_polyline(const PointRange& points,
-                            const PointRange& third_points,
+  triangulate_hole_polyline(const PointRange1& points,
+                            const PointRange2& third_points,
                             OutputIterator out,
                             const NamedParameters& np)
   {
@@ -343,7 +351,7 @@ namespace Polygon_mesh_processing {
     CGAL::internal::Tracer_polyline_incomplete<OutputIteratorValueType, OutputIterator, Holes_out>
       tracer(out, Holes_out(holes));
     
-    typedef typename PointRange::iterator InIterator;
+    typedef typename PointRange1::iterator InIterator;
     typedef typename std::iterator_traits<InIterator>::value_type Point;
 
     triangulate_hole_polyline(points, third_points, tracer, WC(),
@@ -355,11 +363,12 @@ namespace Polygon_mesh_processing {
     return tracer.out;
   }
 
-  template <typename PointRange,
+  template <typename PointRange1,
+            typename PointRange2,
             typename OutputIterator>
   OutputIterator
-  triangulate_hole_polyline(const PointRange& points,
-                            const PointRange& third_points,
+  triangulate_hole_polyline(const PointRange1& points,
+                            const PointRange2& third_points,
                             OutputIterator out)
   {
     return triangulate_hole_polyline(points, third_points, out,
@@ -373,13 +382,16 @@ namespace Polygon_mesh_processing {
 */
   template <typename PointRange,
             typename OutputIterator,
-            typename NamedParameters>
+            typename CGAL_PMP_NP_TEMPLATE_PARAMETERS>
   OutputIterator
   triangulate_hole_polyline(const PointRange& points,
                             OutputIterator out,
-                            const NamedParameters& np)
+                            const CGAL_PMP_NP_CLASS& np)
   {
-    return triangulate_hole_polyline(points, PointRange(), out, np);
+    typedef typename std::iterator_traits<
+      typename PointRange::iterator>::value_type Point;
+    std::vector< Point > third_points;
+    return triangulate_hole_polyline(points, third_points, out, np);
   }
 
   template <typename PointRange,

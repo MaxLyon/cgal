@@ -1,23 +1,3 @@
-// Copyright (c) 2012 GeometryFactory (France). All rights reserved.
-// All rights reserved.
-//
-// Licensees holding a valid commercial license may use this file in
-// accordance with the commercial license agreement provided with the software.
-//
-// This file is part of CGAL (www.cgal.org); you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public License as
-// published by the Free Software Foundation; version 2.1 of the License.
-// See the file LICENSE.LGPL distributed with CGAL.
-//
-// This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-//
-// $URL$
-// $Id$
-// 
-//
-// Author(s)     : Philipp Möller
-
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
 #include <CGAL/boost/graph/graph_concepts.h>
@@ -40,8 +20,6 @@ void concept_check_polyhedron() {
   boost::function_requires< boost::IncidenceGraphConcept<Polyhedron> >();
   boost::function_requires< boost::AdjacencyMatrixConcept<Polyhedron> >();
   boost::function_requires< boost::BidirectionalGraphConcept<Polyhedron> >();
-  // no longer the case
-  // boost::function_requires< boost::MutableGraphConcept<Polyhedron> >();
   boost::function_requires< CGAL::HalfedgeGraphConcept<Polyhedron> >();
   boost::function_requires< CGAL::HalfedgeListGraphConcept<Polyhedron> >();
   boost::function_requires< CGAL::FaceGraphConcept<Polyhedron> >();
@@ -59,8 +37,6 @@ void concept_check_polyhedron() {
     Polyhedron, vertex_descriptor, CGAL::vertex_point_t> >();
   boost::function_requires< boost::concepts::PropertyGraph<
     Polyhedron, vertex_descriptor, boost::vertex_index_t> >();
-  // boost::function_requires< boost::concepts::ReadablePropertyGraph<
-  //   Polyhedron, vertex_descriptor, boost::vertex_is_border_t> >();
   boost::function_requires< boost::concepts::PropertyGraph<
     Polyhedron, face_descriptor, CGAL::face_index_t> >();
 

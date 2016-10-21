@@ -1,5 +1,5 @@
 #include <QtCore/qglobal.h>
-#include <CGAL/AABB_intersections.h>
+#include <CGAL/intersections.h>
 
 #include "Messages_interface.h"
 #include "Scene_plane_item.h"
@@ -39,7 +39,6 @@ public:
   bool applicable(QAction*) const { return qobject_cast<Scene_polyhedron_item*>(scene->item(scene->mainSelectionIndex())); }
   void print_message(QString message) { messages->information(message);}
 
-  using Polyhedron_demo_plugin_helper::init;
   void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface, Messages_interface* m);
   virtual void closure()
   {
@@ -65,7 +64,7 @@ public Q_SLOTS:
   void on_Generate_button_clicked();
   bool on_Update_plane_button_clicked();
   void plane_manipulated_frame_modified();
-  void item_about_to_be_destroyed(Scene_item* scene_item);
+  void item_about_to_be_destroyed(CGAL::Three::Scene_item* scene_item);
   void dock_widget_closed();
 
 protected:
@@ -109,7 +108,7 @@ void Polyhedron_demo_polyhedron_slicer_plugin::init(QMainWindow* mainWindow,
   dock_widget->installEventFilter(this);
   ui_widget.setupUi(dock_widget);
 
-  add_dock_widget(dock_widget);
+  addDockWidget(dock_widget);
 
   connect(ui_widget.Generate_button,  SIGNAL(clicked()), this, SLOT(on_Generate_button_clicked()));   
   connect(ui_widget.Update_plane_button,  SIGNAL(clicked()), this, SLOT(on_Update_plane_button_clicked())); 
@@ -128,9 +127,9 @@ void Polyhedron_demo_polyhedron_slicer_plugin::slicer_widget_action(){
 
   plane_item = new Scene_plane_item(scene);
   const CGAL::Three::Scene_interface::Bbox& bbox = scene->bbox();
-  plane_item->setPosition((bbox.xmin + bbox.xmax)/2.f,
-    (bbox.ymin+bbox.ymax)/2.f,
-    (bbox.zmin+bbox.zmax)/2.f);
+  plane_item->setPosition((bbox.xmin() + bbox.xmax())/2.f,
+    (bbox.ymin()+bbox.ymax())/2.f,
+    (bbox.zmin()+bbox.zmax())/2.f);
   plane_item->setNormal(0., 0., 1.);
   plane_item->setManipulatable(true);
   plane_item->setClonable(false);
@@ -140,12 +139,12 @@ void Polyhedron_demo_polyhedron_slicer_plugin::slicer_widget_action(){
     this, SLOT(plane_manipulated_frame_modified()));
 
   if(Scene* scene_casted = dynamic_cast<Scene*>(scene)) 
-  { connect(scene_casted, SIGNAL(itemAboutToBeDestroyed(Scene_item*)), this, SLOT(item_about_to_be_destroyed(Scene_item*))); }
+  { connect(scene_casted, SIGNAL(itemAboutToBeDestroyed(CGAL::Three::Scene_item*)), this, SLOT(item_about_to_be_destroyed(CGAL::Three::Scene_item*))); }
   scene->addItem(plane_item);
 
   // set distance_with_planes = bbox_diagona / 30
   double diagonal = std::sqrt(
-    CGAL::squared_distanceC3( bbox.xmin, bbox.ymin, bbox.zmin, bbox.xmax, bbox.ymax, bbox.zmax) );
+    CGAL::squared_distanceC3( bbox.xmin(), bbox.ymin(), bbox.zmin(), bbox.xmax(), bbox.ymax(), bbox.zmax()) );
   ui_widget.Distance_with_planes->setText(QString::number(diagonal / 30.0));
 
   plane_manipulated_frame_modified(); // update text boxes
@@ -213,14 +212,14 @@ bool Polyhedron_demo_polyhedron_slicer_plugin::on_Update_plane_button_clicked() 
 // generate multiple cuts, until any cut does not intersect with bbox
 void Polyhedron_demo_polyhedron_slicer_plugin::on_Generate_button_clicked()
 {
-  Scene_polyhedron_item* item = get_selected_item<Scene_polyhedron_item>();
+  Scene_polyhedron_item* item = getSelectedItem<Scene_polyhedron_item>();
   if(!item) { 
     print_message("Error: There is no selected Scene_polyhedron_item!");
     return; 
   }
 
   if(!on_Update_plane_button_clicked()) { return; }
-
+  QApplication::setOverrideCursor(Qt::WaitCursor);
   // get plane position and normal
   qglviewer::ManipulatedFrame* mf = plane_item->manipulatedFrame();
   const qglviewer::Vec& pos = mf->position();
@@ -241,13 +240,14 @@ void Polyhedron_demo_polyhedron_slicer_plugin::on_Generate_button_clicked()
   double distance_with_planes = ui_widget.Distance_with_planes->text().toDouble(&to_double_ok);
   if(!to_double_ok) { 
     print_message("Error: Set Distance_with_planes text box!");
+    QApplication::restoreOverrideCursor();
     return; 
   }
 
   // construct a bbox for selected polyhedron
   const CGAL::Three::Scene_interface::Bbox& bbox = item->bbox();
-  CGAL::Bbox_3 cgal_bbox(bbox.xmin, bbox.ymin, bbox.zmin,
-    bbox.xmax, bbox.ymax, bbox.zmax);
+  CGAL::Bbox_3 cgal_bbox(bbox.xmin(), bbox.ymin(), bbox.zmin(),
+    bbox.xmax(), bbox.ymax(), bbox.zmax());
   Polyhedron* poly = item->polyhedron();
 
   // continue generating planes while inside bbox
@@ -311,12 +311,13 @@ void Polyhedron_demo_polyhedron_slicer_plugin::on_Generate_button_clicked()
       new_polylines_item->setColor(Qt::green);
       new_polylines_item->setRenderingMode(Wireframe);
       scene->addItem(new_polylines_item);
-      new_polylines_item->invalidate_buffers();
+      new_polylines_item->invalidateOpenGLBuffers();
     }
   }
+  QApplication::restoreOverrideCursor();
 }
 
-void Polyhedron_demo_polyhedron_slicer_plugin::item_about_to_be_destroyed(Scene_item* scene_item) {
+void Polyhedron_demo_polyhedron_slicer_plugin::item_about_to_be_destroyed(CGAL::Three::Scene_item* scene_item) {
   if(plane_item == NULL) { return; }// which means this plugin erased plane_item
   Scene_plane_item* destroyed_plane = qobject_cast<Scene_plane_item*>(scene_item);
   if(destroyed_plane && destroyed_plane == plane_item) {

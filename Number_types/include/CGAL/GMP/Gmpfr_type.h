@@ -28,6 +28,7 @@
 #include <limits>
 #include <CGAL/Uncertain.h>
 #include <CGAL/ipower.h>
+#include <CGAL/IO/io.h>
 
 #if MPFR_VERSION_MAJOR < 3
         typedef mp_rnd_t mpfr_rnd_t;
@@ -1030,7 +1031,7 @@ std::istream& operator>>(std::istream& is,Gmpfr &f){
         std::ios::fmtflags old_flags = is.flags();
 
         is.unsetf(std::ios::skipws);
-        gmpz_eat_white_space(is);
+        internal::eat_white_space(is);
 
         // 1. read the mantissa, it starts in +, - or a digit and ends in e
         Gmpz mant(0);           // the mantissa of the number
@@ -1042,11 +1043,11 @@ std::istream& operator>>(std::istream& is,Gmpfr &f){
                 case '-':
                         neg_mant=true;
                         is.get();
-                        gmpz_eat_white_space(is);
+                        internal::eat_white_space(is);
                         break;
                 case '+':
                         is.get();
-                        gmpz_eat_white_space(is);
+                        internal::eat_white_space(is);
                         break;
                 case 'n':       // this is NaN
                         is.get();
@@ -1087,8 +1088,8 @@ std::istream& operator>>(std::istream& is,Gmpfr &f){
         if(neg_mant)
                 mant=-mant;
 
-        is.putback(c);
-        gmpz_eat_white_space(is);
+        is.putback(static_cast<std::istream::char_type>(c));
+        internal::eat_white_space(is);
 
         switch(c=is.get()){
                 case 'e':
@@ -1103,20 +1104,20 @@ std::istream& operator>>(std::istream& is,Gmpfr &f){
                 case '-':
                         neg_exp=true;
                         is.get();
-                        gmpz_eat_white_space(is);
+                        internal::eat_white_space(is);
                         break;
                 case '+':
                         is.get();
-                        gmpz_eat_white_space(is);
+                        internal::eat_white_space(is);
                         break;
                 default:
                         if(c<'0'||c>'9')
                                 goto invalid_number;
         }
-        gmpz_eat_white_space(is);
+        internal::eat_white_space(is);
         while((c=is.get())>='0'&&c<='9')
                 exp=10*exp+(c-'0');
-        is.putback(c);
+        is.putback(static_cast<std::istream::char_type>(c));
         if(exp.bit_size()>8*sizeof(mpfr_exp_t))
                 mpfr_set_erangeflag();
 

@@ -24,7 +24,7 @@
 #include <map>
 #include <set>
 #include <CGAL/assertions.h>
-#include <CGAL/Polygon_mesh_processing/internal/Hole_filling/Weights.h>
+#include <CGAL/Polygon_mesh_processing/Weights.h>
 #include <CGAL/Timer.h>
 #include <CGAL/trace.h>
 #include <iterator>
@@ -93,9 +93,9 @@ private:
       }
       else { 
         typename boost::property_traits<VertexPointMap>::reference p = ppmap[v];
-        x += multiplier * - p.x(); 
-        y += multiplier * - p.y(); 
-        z += multiplier * - p.z(); 
+        x += multiplier * - to_double(p.x());
+        y += multiplier * - to_double(p.y());
+        z += multiplier * - to_double(p.z());
       }
     }
     else {

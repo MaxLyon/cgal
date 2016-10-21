@@ -11,7 +11,7 @@
 /*!
 \addtogroup PkgTriangulations
 \cgalPkgDescriptionBegin{dD Triangulations,PkgTriangulationsSummary}
-\cgalPkgPicture{detail.png}
+\cgalPkgPicture{Hypertriangle.png}
 \cgalPkgSummaryBegin
 \cgalPkgAuthors{Samuel Hornus, Olivier Devillers and Clément Jamin}
 \cgalPkgDesc{This package provides classes for manipulating 
@@ -73,8 +73,8 @@ is opposite to the vertex with the same index.
 ## Triangulation Data Structure ##
 
 - `TriangulationDataStructure`
-- `TriangulationDataStructure_2::FullCell`
-- `TriangulationDataStructure_2::Vertex`
+- `TriangulationDataStructure::FullCell`
+- `TriangulationDataStructure::Vertex`
 - `TriangulationDSVertex`
 - `TriangulationDSFullCell`
 - `TriangulationDSFace`

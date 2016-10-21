@@ -36,11 +36,13 @@ class Polyhedron_demo_point_set_bilateral_smoothing_plugin :
   QAction* actionBilateralSmoothing;
 
 public:
-  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface) {
-    actionBilateralSmoothing = new QAction(tr("Point set bilateral smoothing"), mainWindow);
+  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface, Messages_interface*) {
+    scene = scene_interface;
+    mw = mainWindow;
+    actionBilateralSmoothing = new QAction(tr("Bilateral Smoothing"), mainWindow);
+    actionBilateralSmoothing->setProperty("subMenuName","Point Set Processing");
     actionBilateralSmoothing->setObjectName("actionBilateralSmoothing");
-
-    Polyhedron_demo_plugin_helper::init(mainWindow, scene_interface);
+    autoConnectActions();
   }
 
   bool applicable(QAction*) const {
@@ -79,6 +81,14 @@ void Polyhedron_demo_point_set_bilateral_smoothing_plugin::on_actionBilateralSmo
 
   if(item)
   {
+    if(!item->has_normals())
+    {
+      QMessageBox::warning(mw,
+                           tr("Cannot smooth"),
+                           tr("%1 does not have normals.")
+                           .arg(item->name()));
+      return;
+    }
     // Gets point set
     Point_set* points = item->point_set();
     if(points == NULL)
@@ -101,7 +111,7 @@ void Polyhedron_demo_point_set_bilateral_smoothing_plugin::on_actionBilateralSmo
       {
 	/* double error = */
 	CGAL::bilateral_smooth_point_set<Concurrency_tag>
-	  (points->begin(), 
+	  (points->begin_or_selection_begin(),
 	   points->end(),
 	   CGAL::make_identity_property_map(Point_set::value_type()),
 	   CGAL::make_normal_of_point_with_normal_pmap(Point_set::value_type()),
@@ -117,7 +127,7 @@ void Polyhedron_demo_point_set_bilateral_smoothing_plugin::on_actionBilateralSmo
 	      << std::endl;
 
     // Updates scene
-    item->invalidate_buffers();
+    item->invalidateOpenGLBuffers();
     scene->itemChanged(index);
 
     QApplication::restoreOverrideCursor();

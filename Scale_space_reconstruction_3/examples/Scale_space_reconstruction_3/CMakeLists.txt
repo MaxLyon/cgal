@@ -1,8 +1,8 @@
-project( Scale_space )
+project( Scale_space_reconstruction_3_Examples )
 
 cmake_minimum_required(VERSION 2.8.11)
 
-find_package( CGAL QUIET COMPONENTS Core )
+find_package( CGAL QUIET)
 
 if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )

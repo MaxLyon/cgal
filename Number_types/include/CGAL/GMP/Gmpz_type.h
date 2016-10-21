@@ -27,6 +27,8 @@
 #define CGAL_GMPZ_TYPE_H
 
 #include <CGAL/basic.h>
+#include <CGAL/IO/io.h>
+
 #include <CGAL/gmp.h>
 #include <mpfr.h>
 
@@ -282,27 +284,6 @@ operator<<(std::ostream& os, const Gmpz &z)
   return os;
 }
 
-inline
-void gmpz_eat_white_space(std::istream &is)
-{
-  std::istream::int_type c;
-  do {
-    c= is.peek();
-    if (c== std::istream::traits_type::eof())
-      return;
-    else {
-      std::istream::char_type cc= c;
-      if ( std::isspace(cc, std::locale::classic()) ) {
-        is.get();
-        // since peek succeeded, this should too
-        CGAL_assertion(!is.fail());
-      } else {
-        return;
-      }
-    }
-  } while (true);
-}
-
 
 inline
 std::istream &
@@ -315,18 +296,18 @@ gmpz_new_read(std::istream &is, Gmpz &z)
   std::ios::fmtflags old_flags = is.flags();
 
   is.unsetf(std::ios::skipws);
-  gmpz_eat_white_space(is);
+  internal::eat_white_space(is);
 
   c=is.peek();
   if (c=='-' || c=='+'){
       is.get();
       CGAL_assertion(!is.fail());
       negative=(c=='-');
-      gmpz_eat_white_space(is);
+      internal::eat_white_space(is);
       c=is.peek();
   }
 
-  std::istream::char_type cc= c;
+  std::istream::char_type cc= static_cast<std::istream::char_type>(c);
 
   if (c== std::istream::traits_type::eof() ||
       !std::isdigit(cc, std::locale::classic() ) ){
@@ -361,7 +342,7 @@ gmpz_new_read(std::istream &is, Gmpz &z)
       if (c== std::istream::traits_type::eof()) {
         break;
       }
-      cc=c;
+      cc=static_cast<std::istream::char_type>(c);
       if  ( !std::isdigit(cc, std::locale::classic() )) {
         break;
       }

@@ -69,12 +69,13 @@ public:
                          const Sphere_3& bounding_sphere,
                          const FT& error_bound = FT(1e-6),
                          CGAL::Random* p_rng = NULL)
-    : Base(Wrapper(f), bounding_sphere, error_bound, p_rng)  {}
+    : Base(Wrapper(f), bounding_sphere, error_bound,
+           Null_subdomain_index(), p_rng)  {}
 
   /// Destructor
   virtual ~Implicit_mesh_domain_3() {}
 
-
+  using Base::bbox;
 private:
   // Disabled copy constructor & assignment operator
   typedef Implicit_mesh_domain_3<Function,BGT> Self;

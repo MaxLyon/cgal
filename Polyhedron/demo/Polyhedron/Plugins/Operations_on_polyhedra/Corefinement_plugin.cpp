@@ -1,3 +1,4 @@
+#define CGAL_COREFINEMENT_DO_REPORT_SELF_INTERSECTIONS
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/corefinement_operations.h>
 #include <CGAL/bounding_box.h>
@@ -5,7 +6,6 @@
 #include "Scene_combinatorial_map_item.h"
 #include "Polyhedron_type.h"
 #include <CGAL/Three/Polyhedron_demo_plugin_interface.h>
-#include <CGAL/Three/Polyhedron_demo_plugin_helper.h>
 
 #include "Scene_polylines_item.h"
 
@@ -21,7 +21,7 @@
 using namespace CGAL::Three;
 class Polyhedron_demo_corefinement_plugin :
   public QObject,
-  public Polyhedron_demo_plugin_helper
+  public Polyhedron_demo_plugin_interface
 {
   Q_OBJECT
   Q_INTERFACES(CGAL::Three::Polyhedron_demo_plugin_interface)
@@ -37,11 +37,10 @@ public:
     return QList<QAction*>() << actionPolyhedronCorefinement_3;
   }
 
-  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface) {
+  void init(QMainWindow* mw, CGAL::Three::Scene_interface* scene_interface, Messages_interface*) {
     this->scene = scene_interface;
-    this->mw = mainWindow;
-    actionPolyhedronCorefinement_3 = new QAction("Polyhedra corefinement (A/B)", mw);
-    actionPolyhedronCorefinement_3->setProperty("subMenuName", "Operations on polyhedra");
+    actionPolyhedronCorefinement_3 = new QAction("Polyhedra Corefinement (A/B)", mw);
+    actionPolyhedronCorefinement_3->setProperty("subMenuName", "Operations on Polyhedra");
     if(actionPolyhedronCorefinement_3) {
       connect(actionPolyhedronCorefinement_3, SIGNAL(triggered()),
               this, SLOT(corefinement()));
@@ -51,6 +50,7 @@ public:
 private:
 
   QAction*  actionPolyhedronCorefinement_3;
+  Scene_interface *scene;
 
 public Q_SLOTS:
   void corefinement();
@@ -169,7 +169,7 @@ void Polyhedron_demo_corefinement_plugin::corefinement()
     new_item->setColor(Qt::green);
     new_item->setRenderingMode(Wireframe);
     scene->addItem(new_item);  
-    new_item->invalidate_buffers();
+    new_item->invalidateOpenGLBuffers();
     std::cout << "ok (" << time.elapsed() << " ms)" << std::endl;
       
   }

@@ -47,16 +47,16 @@ class Polyhedron_demo_polyhedron_stitching_plugin :
   QAction* actionStitchBorders;
 public:
   QList<QAction*> actions() const { return QList<QAction*>() << actionDetectBorders << actionStitchBorders; }
-  using Polyhedron_demo_plugin_helper::init;
   void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface, Messages_interface* /* m */)
   {
-    actionDetectBorders= new QAction(tr("Detect polyhedron boundaries"), mainWindow);
-    actionStitchBorders= new QAction(tr("Stitch polyhedron duplicated boundaries"), mainWindow);
+    scene = scene_interface;
+    actionDetectBorders= new QAction(tr("Detect Boundaries"), mainWindow);
+    actionStitchBorders= new QAction(tr("Stitch Duplicated Boundaries"), mainWindow);
     actionDetectBorders->setObjectName("actionDetectBorders");
     actionStitchBorders->setObjectName("actionStitchBorders");
     actionStitchBorders->setProperty("subMenuName", "Polygon Mesh Processing");
     actionDetectBorders->setProperty("subMenuName", "Polygon Mesh Processing");
-    Polyhedron_demo_plugin_helper::init(mainWindow, scene_interface);
+    autoConnectActions();
   }
 
   bool applicable(QAction*) const {
@@ -129,7 +129,7 @@ void Polyhedron_demo_polyhedron_stitching_plugin::on_actionDetectBorders_trigger
       Polyline_visitor polyline_visitor(new_item); 
       CGAL::split_graph_into_polylines( bg,
                                         polyline_visitor,
-                                        CGAL::IsTerminalDefault() );
+                                        CGAL::internal::IsTerminalDefault() );
 #endif
       
       if (new_item->polylines.empty())
@@ -141,7 +141,7 @@ void Polyhedron_demo_polyhedron_stitching_plugin::on_actionDetectBorders_trigger
         new_item->setName(tr("Boundary of %1").arg(item->name()));
         new_item->setColor(Qt::red);
         scene->addItem(new_item);
-        new_item->invalidate_buffers();
+        new_item->invalidateOpenGLBuffers();
       }
     }
   }
@@ -158,7 +158,7 @@ void Polyhedron_demo_polyhedron_stitching_plugin::on_actionStitchBorders_trigger
     {
       Polyhedron* pMesh = item->polyhedron();
       CGAL::Polygon_mesh_processing::stitch_borders(*pMesh);
-      item->invalidate_buffers();
+      item->invalidateOpenGLBuffers();
       scene->itemChanged(item);
     }
   }

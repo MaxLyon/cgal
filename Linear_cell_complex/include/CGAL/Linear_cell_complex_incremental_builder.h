@@ -47,10 +47,11 @@ namespace CGAL {
       ++new_vertices;
       return res;
     }
-    
+
     void begin_facet()
     {
-      CGAL_assertion( first_dart==lcc.null_handle && prev_dart==lcc.null_handle );
+      first_dart = lcc.null_handle;
+      prev_dart  = lcc.null_handle;
       // std::cout<<"Begin facet: "<<std::flush;
     }
 
@@ -64,7 +65,7 @@ namespace CGAL {
       {
         lcc.template link_beta<1>(prev_dart, cur);
 
-        Dart_handle opposite=find_dart_between(i,lcc.temp_vertex_attribute(prev_dart));
+        Dart_handle opposite=find_dart_between(i,lcc.vertex_attribute(prev_dart));
         if ( opposite!=lcc.null_handle )
         {
           CGAL_assertion( lcc.template is_free<2>(opposite) );
@@ -83,13 +84,14 @@ namespace CGAL {
       prev_vertex = i;
     }
 
-    void end_facet()
+    // End of the facet. Return the first dart of this facet.
+    Dart_handle end_facet()
     {
       CGAL_assertion( first_dart!=lcc.null_handle && prev_dart!=lcc.null_handle );
       lcc.template link_beta<1>(prev_dart, first_dart);
 
       Dart_handle opposite =
-        find_dart_between(first_vertex,lcc.temp_vertex_attribute(prev_dart));
+        find_dart_between(first_vertex,lcc.vertex_attribute(prev_dart));
       if ( opposite!=lcc.null_handle )
       {
         CGAL_assertion( lcc.template is_free<2>(opposite) );
@@ -98,8 +100,7 @@ namespace CGAL {
 
       add_dart_in_vertex_to_dart_map( prev_dart, prev_vertex );
 
-      first_dart = lcc.null_handle;
-      prev_dart = lcc.null_handle;
+      return first_dart;
       // std::cout<<"  end facet."<<std::endl;
     }
 
@@ -115,8 +116,9 @@ namespace CGAL {
       // lcc.reserve(v,h);
     }
 
-    void end_surface()
-    {}
+    // End of the surface. Return one dart of the created surface.
+    Dart_handle end_surface()
+    { return first_dart; }
 
   protected:
 
@@ -129,7 +131,7 @@ namespace CGAL {
 
       for ( ; it!=itend; ++it )
       {
-        if ( lcc.temp_vertex_attribute(lcc.template beta<1>(*it))==vh ) return (*it);
+        if ( lcc.vertex_attribute(lcc.template beta<1>(*it))==vh ) return (*it);
       }
       return lcc.null_handle;
     }

@@ -8,33 +8,36 @@ else(EIGEN3_FOUND)
   message(STATUS "NOTICE: Eigen 3.1 (or greater) was not found. Jet fitting plugin will not be available.")
 endif(EIGEN3_FOUND)
 
-if(EIGEN3_FOUND AND ${EIGEN3_VERSION} VERSION_GREATER "3.1.90")
+if(EIGEN3_FOUND)
+  if("${EIGEN3_VERSION}" VERSION_GREATER "3.1.90")
 
-  qt5_wrap_ui( hole_fillingUI_FILES Hole_filling_widget.ui)
-  polyhedron_demo_plugin(hole_filling_plugin Hole_filling_plugin ${hole_fillingUI_FILES})
-  target_link_libraries(hole_filling_plugin scene_polyhedron_item scene_polylines_item)
+    qt5_wrap_ui( hole_fillingUI_FILES Hole_filling_widget.ui)
+    polyhedron_demo_plugin(hole_filling_plugin Hole_filling_plugin ${hole_fillingUI_FILES})
+    target_link_libraries(hole_filling_plugin scene_polyhedron_item scene_polylines_item)
 
-  qt5_wrap_ui( fairingUI_FILES Fairing_widget.ui)
-  polyhedron_demo_plugin(fairing_plugin Fairing_plugin ${fairingUI_FILES})
-  target_link_libraries(fairing_plugin scene_polyhedron_selection_item)
+    qt5_wrap_ui( fairingUI_FILES Fairing_widget.ui)
+    polyhedron_demo_plugin(fairing_plugin Fairing_plugin ${fairingUI_FILES})
+    target_link_libraries(fairing_plugin scene_polyhedron_selection_item)
 
-  polyhedron_demo_plugin(hole_filling_polyline_plugin Hole_filling_polyline_plugin)
-  target_link_libraries(hole_filling_polyline_plugin scene_polyhedron_item scene_polylines_item)
-
+    polyhedron_demo_plugin(hole_filling_polyline_plugin Hole_filling_polyline_plugin)
+    target_link_libraries(hole_filling_polyline_plugin scene_polyhedron_item scene_polylines_item)
+  else()
+    message(STATUS "NOTICE: The hole filling and fairing plugins require Eigen 3.2 (or higher) and will not be available.")
+  endif()
 else()
   message(STATUS "NOTICE: The hole filling and fairing plugins require Eigen 3.2 (or higher) and will not be available.")
 endif()
 
 
 polyhedron_demo_plugin(orient_soup_plugin Orient_soup_plugin)
-target_link_libraries(orient_soup_plugin scene_polygon_soup_item scene_polyhedron_item)
+target_link_libraries(orient_soup_plugin scene_polygon_soup_item scene_polyhedron_item scene_surface_mesh_item)
 
 
 polyhedron_demo_plugin(inside_out_plugin Inside_out_plugin)
 target_link_libraries(inside_out_plugin scene_polyhedron_item scene_polygon_soup_item)
 
 polyhedron_demo_plugin(join_and_split_polyhedra_plugin Join_and_split_polyhedra_plugin)
-target_link_libraries(join_and_split_polyhedra_plugin scene_polyhedron_item)
+target_link_libraries(join_and_split_polyhedra_plugin scene_polyhedron_item scene_polyhedron_selection_item)
 
 qt5_wrap_ui( Mean_curvature_flow_skeleton_pluginUI_FILES  Mean_curvature_flow_skeleton_plugin.ui)
 polyhedron_demo_plugin(mean_curvature_flow_skeleton_plugin Mean_curvature_flow_skeleton_plugin ${Mean_curvature_flow_skeleton_pluginUI_FILES})

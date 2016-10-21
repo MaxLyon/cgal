@@ -31,6 +31,8 @@
 #include <CGAL/Kernel/Return_base_tag.h>
 #include <CGAL/Bbox_2.h>
 #include <CGAL/Dimension.h>
+#include <CGAL/number_utils.h>
+#include <CGAL/result_of.h>
 
 namespace CGAL {
 
@@ -281,6 +283,7 @@ extract(std::istream& is, Circle_2<R>& c)
         is >> o;
         break;
     default:
+        is.setstate(std::ios::failbit);
         std::cerr << "" << std::endl;
         std::cerr << "Stream must be in ascii or binary mode" << std::endl;
         break;

@@ -51,14 +51,6 @@
 #include <CGAL/internal/Triangulation_ds_iterators_3.h>
 #include <CGAL/internal/Triangulation_ds_circulators_3.h>
 
-#ifdef CGAL_HAS_THREADS
-#  ifdef CGAL_LINKED_WITH_TBB
-#    include <tbb/enumerable_thread_specific.h>
-#  else
-#    include <boost/thread/tss.hpp>
-#  endif
-#endif
-
 #ifdef CGAL_LINKED_WITH_TBB
 #  include <tbb/scalable_allocator.h>
 #endif
@@ -342,8 +334,8 @@ public:
     }
 
   // not documented
-  void read_cells(std::istream& is, std::map< std::size_t, Vertex_handle > &V,
-                  std::size_t & m, std::map< std::size_t, Cell_handle > &C );
+  void read_cells(std::istream& is, const std::vector< Vertex_handle > &V,
+                  std::size_t & m, std::vector< Cell_handle > &C);
   // not documented
   void print_cells(std::ostream& os,
                    const Unique_hash_map<Vertex_handle, std::size_t> &V ) const;
@@ -1692,7 +1684,7 @@ operator>>(std::istream& is, Triangulation_data_structure_3<Vb,Cb,Ct>& tds)
   if(n == 0)
     return is;
 
-  std::map<std::size_t , Vertex_handle > V;
+  std::vector<Vertex_handle > V(n);
 
   // creation of the vertices
   for (std::size_t i=0; i < n; i++) {
@@ -1702,7 +1694,7 @@ operator>>(std::istream& is, Triangulation_data_structure_3<Vb,Cb,Ct>& tds)
     V[i] = tds.create_vertex();
   }
 
-  std::map< std::size_t, Cell_handle > C;
+  std::vector< Cell_handle > C;
   std::size_t m;
 
   tds.read_cells(is, V, m, C);
@@ -2239,8 +2231,8 @@ flip_really( Cell_handle c, int i, int j,
 template <class Vb, class Cb, class Ct>
 void
 Triangulation_data_structure_3<Vb,Cb,Ct>::
-read_cells(std::istream& is, std::map< std::size_t, Vertex_handle > &V,
-           std::size_t & m, std::map< std::size_t, Cell_handle > &C)
+read_cells(std::istream& is, const std::vector< Vertex_handle > &V,
+           std::size_t & m, std::vector< Cell_handle > &C)
 {
   // creation of the cells and neighbors
   switch (dimension()) {
@@ -2252,6 +2244,8 @@ read_cells(std::istream& is, std::map< std::size_t, Vertex_handle > &V,
         is >> m;
       else
         read(is, m);
+
+      C.resize(m);
 
       for(std::size_t i = 0; i < m; i++) {
         Cell_handle c = create_cell();
@@ -2282,7 +2276,7 @@ read_cells(std::istream& is, std::map< std::size_t, Vertex_handle > &V,
   case 0:
     {
       m = 2;
-
+      C.resize(m);
       //      CGAL_triangulation_assertion( n == 2 );
       for (int i=0; i < 2; i++) {
         Cell_handle c = create_face(V[i], Vertex_handle(), Vertex_handle());
@@ -2298,6 +2292,7 @@ read_cells(std::istream& is, std::map< std::size_t, Vertex_handle > &V,
   case -1:
     {
       m = 1;
+      C.resize(m);
       //      CGAL_triangulation_assertion( n == 1 );
       Cell_handle c = create_face(V[0], Vertex_handle(), Vertex_handle());
       C[0] = c;
@@ -2312,7 +2307,7 @@ void
 Triangulation_data_structure_3<Vb,Cb,Ct>::
 print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> &V ) const
 {
-  std::map<Cell_handle, std::size_t > C;
+  Unique_hash_map<Cell_handle, std::size_t > C;
   std::size_t i = 0;
 
   switch ( dimension() ) {
@@ -2332,7 +2327,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
           if(is_ascii(os)) {
             os << V[it->vertex(j)];
             if ( j==3 )
-              os << std::endl;
+              os << '\n';
             else
               os << ' ';
           }
@@ -2348,7 +2343,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
           if(is_ascii(os)){
             os << C[it->neighbor(j)];
             if(j==3)
-              os << std::endl;
+              os << '\n';
             else
               os <<  ' ';
           }
@@ -2362,7 +2357,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
     {
       size_type m = number_of_facets();
       if(is_ascii(os))
-        os << m << std::endl;
+        os << m << '\n';
       else
         write(os, m);
 
@@ -2374,7 +2369,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
           if(is_ascii(os)) {
             os << V[(*it).first->vertex(j)];
             if ( j==2 )
-              os << std::endl;
+              os << '\n';
             else
               os <<  ' ';
           }
@@ -2391,7 +2386,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
           if(is_ascii(os)){
             os << C[(*it).first->neighbor(j)];
             if(j==2)
-              os << std::endl;
+              os << '\n';
             else
               os <<  ' ';
           }
@@ -2406,7 +2401,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
     {
       size_type m = number_of_edges();
       if(is_ascii(os))
-        os << m << std::endl;
+        os << m << '\n';
       else
         write(os, m);
       // write the edges
@@ -2417,7 +2412,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
           if(is_ascii(os)) {
             os << V[(*it).first->vertex(j)];
             if ( j==1 )
-              os << std::endl;
+              os << '\n';
             else
               os <<  ' ';
           }
@@ -2434,7 +2429,7 @@ print_cells(std::ostream& os, const Unique_hash_map<Vertex_handle, std::size_t> 
           if(is_ascii(os)){
             os << C[(*it).first->neighbor(j)];
             if(j==1)
-              os << std::endl;
+              os << '\n';
             else
               os <<  ' ';
           }
@@ -3398,7 +3393,7 @@ is_valid(bool verbose, int level ) const
         CGAL_triangulation_assertion(false);
         return false;
       }
-      // no break; continue
+      CGAL_FALLTHROUGH;
     }
   case -1:
     {

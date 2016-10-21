@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-
+struct Scene_points_with_normal_item_priv;
 // point set
 typedef Point_set_3<Kernel> Point_set;
 typedef Point_set::UI_point UI_point; // type of points in Point_set_3
@@ -46,15 +46,15 @@ public:
   // Function for displaying meta-data of the item
   virtual QString toolTip() const;
 
-  virtual void invalidate_buffers();
+  virtual void invalidateOpenGLBuffers();
 
   // Indicate if rendering mode is supported
   virtual bool supportsRenderingMode(RenderingMode m) const;
 
-  virtual void draw_edges(CGAL::Three::Viewer_interface* viewer) const;
-  virtual void draw_points(CGAL::Three::Viewer_interface*) const;
+  virtual void drawEdges(CGAL::Three::Viewer_interface* viewer) const;
+  virtual void drawPoints(CGAL::Three::Viewer_interface*) const;
 
-  virtual void draw_splats(CGAL::Three::Viewer_interface*) const;
+  virtual void drawSplats(CGAL::Three::Viewer_interface*) const;
   
   // Gets wrapped point set
   Point_set*       point_set();
@@ -84,43 +84,15 @@ public Q_SLOTS:
   void resetSelection();
   //Select duplicated points
   void selectDuplicates();
+  //Set the status of the slider as `pressed`
+  void pointSliderPressed();
+  //Set the status of the slider as `released`
+  void pointSliderReleased();
 
 // Data
-private:
-  Point_set* m_points;
-  bool m_has_normals;
-  QAction* actionDeleteSelection;
-  QAction* actionResetSelection;
-  QAction* actionSelectDuplicatedPoints;
-
-  enum VAOs {
-      Edges=0,
-      ThePoints,
-      Selected_points,
-      NbOfVaos = Selected_points+1
-  };
-  enum VBOs {
-      Edges_vertices = 0,
-      Points_vertices,
-      Selected_points_vertices,
-      NbOfVbos = Selected_points_vertices+1
-  };
-
-  mutable std::vector<double> positions_lines;
-  mutable std::vector<double> positions_points;
-  mutable std::vector<double> positions_selected_points;
-  mutable std::vector<double> normals;
-  mutable std::size_t nb_points;
-  mutable std::size_t nb_selected_points;
-  mutable std::size_t nb_lines;
-
-  mutable QOpenGLShaderProgram *program;
-
-  using CGAL::Three::Scene_item::initialize_buffers;
-  void initialize_buffers(CGAL::Three::Viewer_interface *viewer) const;
-
-  void compute_normals_and_vertices() const;
-
+protected:
+  friend struct Scene_points_with_normal_item_priv;
+  Scene_points_with_normal_item_priv* d;
 
 }; // end class Scene_points_with_normal_item
 

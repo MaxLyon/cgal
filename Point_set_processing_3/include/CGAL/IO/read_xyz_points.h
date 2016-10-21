@@ -23,13 +23,8 @@
 #include <CGAL/property_map.h>
 #include <CGAL/value_type_traits.h>
 #include <CGAL/point_set_processing_assertions.h>
-
-#include <boost/version.hpp>
-#if BOOST_VERSION >= 104000
-  #include <boost/property_map/property_map.hpp>
-#else
-  #include <boost/property_map.hpp>
-#endif
+#include <CGAL/Origin.h>
+#include <CGAL/Kernel_traits.h>
 
 #include <iostream>
 #include <sstream>
@@ -130,13 +125,8 @@ read_xyz_points_and_normals(
               }
             }
           Enriched_point pwn;
-        #ifdef CGAL_USE_PROPERTY_MAPS_API_V1
-          put(point_pmap,  &pwn, point);  // point_pmap[&pwn] = point
-          put(normal_pmap, &pwn, normal); // normal_pmap[&pwn] = normal
-        #else
           put(point_pmap,  pwn, point);  // point_pmap[pwn] = point
           put(normal_pmap, pwn, normal); // normal_pmap[pwn] = normal
-        #endif
           *output++ = pwn;
           continue;
         } 
@@ -248,11 +238,7 @@ read_xyz_points_and_normals(
     <OutputIteratorValueType>(
     stream,
     output,
-#ifdef CGAL_USE_PROPERTY_MAPS_API_V1
-    make_dereference_property_map(output),
-#else
     make_identity_property_map(OutputIteratorValueType()),
-#endif
     normal_pmap);
 }
 
@@ -398,11 +384,7 @@ read_xyz_points(
     <OutputIteratorValueType>(
     stream,
     output,
-#ifdef CGAL_USE_PROPERTY_MAPS_API_V1
-    make_dereference_property_map(output)
-#else
     make_identity_property_map(OutputIteratorValueType())
-#endif
     );
 }
 

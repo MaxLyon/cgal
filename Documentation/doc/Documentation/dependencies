@@ -12,6 +12,7 @@ Matrix_search
 Box_intersection_d
 CGAL_ipelets
 Circulator
+Cone_spanners_2
 Convex_decomposition_3
 Convex_hull_2
 Convex_hull_3
@@ -80,6 +81,7 @@ Segment_Delaunay_graph_2
 Segment_Delaunay_graph_Linf_2
 Straight_skeleton_2
 Visibility_2
+Optimal_transportation_reconstruction_2
 Voronoi_diagram_2
 Surface_mesh_simplification
 Subdivision_method_3
@@ -88,7 +90,7 @@ Surface_reconstruction_points_3
 Surface_mesh_segmentation
 Stream_lines_2
 Stream_support
-Surface_modeling
+Surface_mesh_deformation
 Barycentric_coordinates_2
 Surface_mesh
 Surface_mesh_shortest_path

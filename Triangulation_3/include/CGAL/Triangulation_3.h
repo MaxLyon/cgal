@@ -59,8 +59,10 @@
 #include <boost/random/uniform_smallint.hpp>
 #include <boost/random/variate_generator.hpp>
 #include <boost/mpl/if.hpp>
+#include <boost/unordered_map.hpp>
 
 #ifndef CGAL_NO_STRUCTURAL_FILTERING
+#include <CGAL/internal/Static_filters/tools.h>
 #include <CGAL/Triangulation_structural_filtering_traits.h>
 #include <CGAL/determinant.h>
 #endif // no CGAL_NO_STRUCTURAL_FILTERING
@@ -126,7 +128,7 @@ protected:
   template <typename Vertex_triple, typename Facet>
   struct Vertex_triple_Facet_map_generator
   {
-    typedef std::map<Vertex_triple, Facet> type;
+    typedef boost::unordered_map<Vertex_triple, Facet> type;
   };
 
   template <typename Vertex_handle>
@@ -213,14 +215,17 @@ protected:
   template <typename Vertex_triple, typename Facet>
   struct Vertex_triple_Facet_map_generator
   {
-    typedef std::map
+    typedef boost::unordered_map
     <
       Vertex_triple,
       Facet,
-      std::less<Vertex_triple>,
+      boost::hash<Vertex_triple>,
+      std::equal_to<Vertex_triple>,
       tbb::scalable_allocator<std::pair<const Vertex_triple, Facet> >
     > type;
   };
+
+
 
   template <typename Vertex_handle>
   struct Vertex_handle_unique_hash_map_generator
@@ -895,18 +900,20 @@ public:
   inexact_orientation(const Point &p, const Point &q,
                       const Point &r, const Point &s) const
   {
-    const double px = to_double(p.x());
-    const double py = to_double(p.y());
-    const double pz = to_double(p.z());
-    const double qx = to_double(q.x());
-    const double qy = to_double(q.y());
-    const double qz = to_double(q.z());
-    const double rx = to_double(r.x());
-    const double ry = to_double(r.y());
-    const double rz = to_double(r.z());
-    const double sx = to_double(s.x());
-    const double sy = to_double(s.y());
-    const double sz = to_double(s.z());
+  // So that this code works well with Lazy_kernel
+  internal::Static_filters_predicates::Get_approx<Point> get_approx;
+    const double px = to_double(get_approx(p).x());
+    const double py = to_double(get_approx(p).y());
+    const double pz = to_double(get_approx(p).z());
+    const double qx = to_double(get_approx(q).x());
+    const double qy = to_double(get_approx(q).y());
+    const double qz = to_double(get_approx(q).z());
+    const double rx = to_double(get_approx(r).x());
+    const double ry = to_double(get_approx(r).y());
+    const double rz = to_double(get_approx(r).z());
+    const double sx = to_double(get_approx(s).x());
+    const double sy = to_double(get_approx(s).y());
+    const double sz = to_double(get_approx(s).z());
 
     const double pqx = qx - px;
     const double pqy = qy - py;
@@ -2118,7 +2125,7 @@ operator>> (std::istream& is, Triangulation_3<GT, Tds, Lds> &tr)
   if(!is) return is;
   tr._tds.set_dimension(d);
 
-  std::map< std::size_t, Vertex_handle > V;
+  std::vector< Vertex_handle > V(n+1);
   V[0] = tr.infinite_vertex();
   // the infinite vertex is numbered 0
 
@@ -2127,7 +2134,7 @@ operator>> (std::istream& is, Triangulation_3<GT, Tds, Lds> &tr)
     if(!(is >> *V[i])) return is;
   }
 
-  std::map< std::size_t, Cell_handle > C;
+  std::vector< Cell_handle > C;
 
   std::size_t m;
   tr._tds.read_cells(is, V, m, C);

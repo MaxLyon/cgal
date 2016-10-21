@@ -109,12 +109,13 @@ BOOST_PP_REPEAT_FROM_TO(7, 10, CGAL_CODE, _ )
 template<class R_,int d> struct Orientation_of_points<R_,Dimension_tag<d>,true> : private Store_kernel<R_> {
 	CGAL_FUNCTOR_INIT_STORE(Orientation_of_points)
 	typedef R_ R;
+	typedef typename Get_type<R, RT_tag>::type RT;
 	typedef typename Get_type<R, Point_tag>::type Point;
 	typedef typename Get_type<R, Orientation_tag>::type result_type;
 	template<class>struct Help;
 	template<int...I>struct Help<Indices<I...> > {
 		template<class C,class P,class T> result_type operator()(C const&c,P const&x,T&&t)const{
-			return sign_of_determinant(c(std::get<I/d>(t),I%d)-c(x,I%d)...);
+			return sign_of_determinant<RT>(c(std::get<I/d>(t),I%d)-c(x,I%d)...);
 		}
 	};
 	template<class P0,class...P> result_type operator()(P0 const&x,P&&...p)const{
@@ -152,7 +153,7 @@ template<class R_> struct Orientation_of_points<R_,Dimension_tag<N>,true> : priv
 	result_type operator()(Point const&x, BOOST_PP_ENUM_PARAMS(N,Point const&p)) const { \
 		typename Get_functor<R, Compute_point_cartesian_coordinate_tag>::type c(this->kernel()); \
 		BOOST_PP_REPEAT(N,CGAL_VAR4,) \
-		return sign_of_determinant(BOOST_PP_ENUM(N,CGAL_VAR2,N)); \
+		return sign_of_determinant<RT>(BOOST_PP_ENUM(N,CGAL_VAR2,N)); \
 	} \
 	template<class Iter> \
 	result_type operator()(Iter f, Iter CGAL_assertion_code(e))const{ \
@@ -424,7 +425,11 @@ template<class R_> struct Contained_in_simplex : private Store_kernel<R_> {
 		  }
 		  m(d,i)=1;
 		}
-		if (!LA::solve(a,CGAL_MOVE(m),CGAL_MOVE(b))) return false;
+		// If the simplex has full dimension, there must be a solution, only the signs need to be checked.
+		if (n == d+1)
+		  LA::solve(a,CGAL_MOVE(m),CGAL_MOVE(b));
+		else if (!LA::solve_and_check(a,CGAL_MOVE(m),CGAL_MOVE(b)))
+		  return false;
 		for(int i=0;i<n;++i){
 		  if (a[i]<0) return false;
 		}
@@ -682,7 +687,6 @@ template <class R_> struct Construct_circumcenter : Store_kernel<R_> {
       typedef typename LAd::Vector Vec;
       typename Get_functor<R_, Scalar_product_tag>::type sp(this->kernel());
       int k=static_cast<int>(std::distance(f,e));
-      int d=pd(p0);
       Matrix m(k,k);
       Vec b(k);
       Vec l(k);
@@ -1157,14 +1161,17 @@ template<class R_> struct Compare_lexicographically : private Store_kernel<R_> {
 	template<class V,class W>
 	result_type operator()(V const&a, W const&b)const{
 		CI c(this->kernel());
+
+
 #ifdef CGAL_CXX11
-		auto
+                auto a_begin=c(a,Begin_tag());
+                auto b_begin=c(b,Begin_tag());
+                auto a_end=c(a,End_tag());
 #else
-		typename CI::result_type
+                typename CI::result_type a_begin=c(a,Begin_tag());
+                typename CI::result_type b_begin=c(b,Begin_tag());
+                typename CI::result_type a_end=c(a,End_tag());
 #endif
-		a_begin=c(a,Begin_tag()),
-		b_begin=c(b,Begin_tag()),
-		a_end=c(a,End_tag());
 		result_type res;
 		// can't we do slightly better for Uncertain<*> ?
 		// after res=...; if(is_uncertain(res))return indeterminate<result_type>();
@@ -1226,14 +1233,18 @@ template<class R_> struct Equal_points : private Store_kernel<R_> {
 	template<class V,class W>
 	result_type operator()(V const&a, W const&b)const{
 		CI c(this->kernel());
+
+
 #ifdef CGAL_CXX11
-		auto
+                auto a_begin=c(a,Begin_tag());
+                auto b_begin=c(b,Begin_tag());
+                auto a_end=c(a,End_tag());
 #else
-		typename CI::result_type
+                typename CI::result_type a_begin=c(a,Begin_tag());
+                typename CI::result_type b_begin=c(b,Begin_tag());
+                typename CI::result_type a_end=c(a,End_tag());
 #endif
-		a_begin=c(a,Begin_tag()),
-		b_begin=c(b,Begin_tag()),
-		a_end=c(a,End_tag());
+
 		result_type res = true;
 		// Is using CGAL::possibly for Uncertain really an optimization?
 		do res = res & (*a_begin++ == *b_begin++);

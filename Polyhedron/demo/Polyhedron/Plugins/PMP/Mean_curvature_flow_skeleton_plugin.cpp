@@ -102,12 +102,11 @@ class Polyhedron_demo_mean_curvature_flow_skeleton_plugin :
   QAction* actionConvert_to_medial_skeleton;
 
 public:
-  // used by Polyhedron_demo_plugin_helper
-  QStringList actionsNames() const {
-    return QStringList() << "actionMCFSkeleton" << "actionConvert_to_medial_skeleton";
-  }
 
-  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface) {
+  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface, Messages_interface*) {
+
+    this->mw = mainWindow;
+    this->scene = scene_interface;
     mcs = NULL;
     dockWidget = NULL;
     ui = NULL;
@@ -120,8 +119,6 @@ public:
     actionConvert_to_medial_skeleton->setProperty("subMenuName", "Triangulated Surface Mesh Skeletonization");
     actionConvert_to_medial_skeleton->setObjectName("actionConvert_to_medial_skeleton");
 
-    Polyhedron_demo_plugin_helper::init(mainWindow, scene_interface);
-
     dockWidget = new QDockWidget(mw);
     dockWidget->setVisible(false);
     ui = new Ui::Mean_curvature_flow_skeleton_plugin();
@@ -130,7 +127,7 @@ public:
                           | QDockWidget::DockWidgetFloatable
                           | QDockWidget::DockWidgetClosable);
     dockWidget->setWindowTitle("Mean Curvature Flow Skeleton");
-    add_dock_widget(dockWidget);
+    addDockWidget(dockWidget);
 
     connect(ui->pushButton_contract, SIGNAL(clicked()),
             this, SLOT(on_actionContract()));
@@ -151,6 +148,7 @@ public:
     connect(ui->pushButton_segment, SIGNAL(clicked()),
             this, SLOT(on_actionSegment()));
 
+    autoConnectActions();
     QObject* scene_object = dynamic_cast<QObject*>(scene);
     connect(scene_object, SIGNAL(itemAboutToBeDestroyed(CGAL::Three::Scene_item*)),
             this, SLOT(on_actionItemAboutToBeDestroyed(CGAL::Three::Scene_item*)));
@@ -333,7 +331,7 @@ public:
   {
     CGAL::Polyhedron_copy_3<Mean_curvature_skeleton::Meso_skeleton, Polyhedron::HalfedgeDS> modifier(mcs->meso_skeleton());
     meso_skeleton->delegate(modifier);
-    scene->item(contractedItemIndex)->invalidate_buffers();
+    scene->item(contractedItemIndex)->invalidateOpenGLBuffers();
     scene->itemChanged(contractedItemIndex);
   }
 
@@ -474,6 +472,7 @@ void Polyhedron_demo_mean_curvature_flow_skeleton_plugin::on_actionSegment()
   scene->item(InputMeshItemIndex)->setVisible(false);
   Scene_polyhedron_item* item_segmentation = new Scene_polyhedron_item(segmented_polyhedron);
   item_segmentation->setItemIsMulticolor(true);
+  item_segmentation->invalidateOpenGLBuffers();
   scene->addItem(item_segmentation);
   item_segmentation->setName(QString("segmentation"));
 
@@ -509,11 +508,12 @@ void Polyhedron_demo_mean_curvature_flow_skeleton_plugin::on_actionConvert_to_me
     Polyline_visitor polyline_visitor(skeleton_item->polylines, skeleton);
     CGAL::split_graph_into_polylines( skeleton,
                                       polyline_visitor,
-                                      CGAL::IsTerminalDefault() );
+                                      CGAL::internal::IsTerminalDefault() );
 
     skeleton_item->setName(QString("Medial skeleton curve of %1").arg(item->name()));
+    scene->setSelectedItem(-1);
     scene->addItem(skeleton_item);
-    skeleton_item->invalidate_buffers();
+    skeleton_item->invalidateOpenGLBuffers();
 
     item->setPointsMode();
 
@@ -664,7 +664,7 @@ void Polyhedron_demo_mean_curvature_flow_skeleton_plugin::on_actionDegeneracy()
   }
   // update scene
   update_meso_skeleton();
-  scene->item(fixedPointsItemIndex)->invalidate_buffers();
+  scene->item(fixedPointsItemIndex)->invalidateOpenGLBuffers();
   scene->itemChanged(fixedPointsItemIndex);
   scene->setSelectedItem(index);
   QApplication::restoreOverrideCursor();
@@ -824,11 +824,11 @@ void Polyhedron_demo_mean_curvature_flow_skeleton_plugin::on_actionSkeletonize()
   Polyline_visitor polyline_visitor(skeleton->polylines, skeleton_curve);
   CGAL::split_graph_into_polylines( skeleton_curve,
                                     polyline_visitor,
-                                    CGAL::IsTerminalDefault() );
+                                    CGAL::internal::IsTerminalDefault() );
 
   skeleton->setName(QString("skeleton curve of %1").arg(item->name()));
   scene->addItem(skeleton);
-  skeleton->invalidate_buffers();
+  skeleton->invalidateOpenGLBuffers();
 
   // set the fixed points and contracted mesh as invisible
   if (fixedPointsItemIndex >= 0)
@@ -900,7 +900,7 @@ void Polyhedron_demo_mean_curvature_flow_skeleton_plugin::on_actionConverge()
     delete temp;
   }
 
-  scene->item(fixedPointsItemIndex)->invalidate_buffers();
+  scene->item(fixedPointsItemIndex)->invalidateOpenGLBuffers();
   scene->itemChanged(fixedPointsItemIndex);
   update_meso_skeleton();
   scene->setSelectedItem(index);

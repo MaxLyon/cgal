@@ -21,10 +21,9 @@ sets of points.
 ## Some Definitions ##
 
 A <I>finite abstract simplicial complex</I> is built on a finite set of
-vertices \f$ V\f$ and consists of a collection \f$ S\f$ of subsets of \f$ V\f$ such that
-
-<CENTER>if \f$ s\f$ is a set of vertices in \f$ S\f$, then all the subsets of \f$ s\f$ are also
-in \f$ S\f$.</CENTER>
+vertices \f$ V\f$ and consists of a collection \f$ S\f$ of subsets of \f$ V\f$ such that,
+if \f$ s\f$ is a set of vertices in \f$ S\f$, then all the subsets of \f$ s\f$ are also
+in \f$ S\f$.
 
 The sets in \f$ S\f$ (which are subsets of \f$ V\f$) are called
 <I>faces</I> or <I>simplices</I> (the
@@ -478,6 +477,10 @@ Monique Teillaud and Sylvain Pion (`Triangulation_3`)
 and Mariette Yvinec (`Triangulation_2`).
 The first version was written by Samuel Hornus. The final version is a joint 
 work by Samuel Hornus, Olivier Devillers and Clément Jamin.
+
+Clément Jamin's work was supported by the
+<a href="http://cordis.europa.eu/project/rcn/111529_en.html">Advanced Grant of the European Research Council GUDHI</a>
+(Geometric Understanding in Higher Dimensions).
 
 Starting with the version 2.3 of \cgal, a package written by Susan Hert and Michael Seel
 was the first able to deal with triangulation and convex hulls in arbitrary

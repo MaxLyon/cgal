@@ -26,11 +26,14 @@
 
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Polyhedron_items_with_id_3.h>
-#include <CGAL/FaceGraph_to_Polyhedron_3.h>
+#include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
+#include <CGAL/boost/graph/copy_face_graph.h>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
+#include <boost/unordered_map.hpp>
+#include <boost/property_map/property_map.hpp>
 
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/foreach.hpp>
@@ -38,10 +41,10 @@
 #include <CGAL/boost/graph/iterator.h>
 
 // Compute cotangent Laplacian
-#include <CGAL/internal/Surface_mesh_skeletonization/Weights.h>
+#include <CGAL/Polygon_mesh_processing/Weights.h>
 
 // Compute the vertex normal
-#include <CGAL/internal/Surface_mesh_skeletonization/get_normal.h>
+#include <CGAL/Polygon_mesh_processing/compute_normal.h>
 
 // Simplification function
 #include <CGAL/boost/graph/Euler_operations.h>
@@ -219,14 +222,17 @@ public:
   // Repeat mTriangleMesh types
   typedef typename boost::graph_traits<mTriangleMesh>::vertex_descriptor       vertex_descriptor;
   typedef typename boost::graph_traits<mTriangleMesh>::halfedge_descriptor     halfedge_descriptor;
+  typedef typename boost::graph_traits<mTriangleMesh>::face_descriptor         face_descriptor;
   typedef typename boost::graph_traits<mTriangleMesh>::vertex_iterator         vertex_iterator;
   typedef typename boost::graph_traits<mTriangleMesh>::edge_descriptor         edge_descriptor;
   typedef typename boost::graph_traits<mTriangleMesh>::edge_iterator           edge_iterator;
 
   // Cotangent weight calculator
-  typedef typename internal::Cotangent_weight<mTriangleMesh,
-  internal::Cotangent_value_minimum_zero<mTriangleMesh,
-  internal::Cotangent_value_Meyer_secure<mTriangleMesh> > >                    Weight_calculator;
+  typedef internal::Cotangent_weight<mTriangleMesh,
+    typename boost::property_map<mTriangleMesh, vertex_point_t>::type,
+    internal::Cotangent_value_minimum_zero<mTriangleMesh,
+      typename boost::property_map<mTriangleMesh, vertex_point_t>::type,
+      internal::Cotangent_value_Meyer_secure<mTriangleMesh> > >                Weight_calculator;
 
   typedef internal::Curve_skeleton<mTriangleMesh,
                                    VertexIndexMap,
@@ -373,16 +379,16 @@ public:
   Mean_curvature_flow_skeletonization(const TriangleMesh& tmesh,
                                       VertexPointMap vertex_point_map,
                                       const Traits& traits = Traits())
-    : m_traits(traits)
+    : m_traits(traits), m_weight_calculator(m_tmesh)
   {
     init(tmesh, vertex_point_map);
   }
 
   Mean_curvature_flow_skeletonization(const TriangleMesh& tmesh,
                                       const Traits& traits = Traits())
-    : m_traits(traits)
+    : m_traits(traits), m_weight_calculator(m_tmesh)
   {
-    init(tmesh, get(vertex_point, tmesh));
+    init(tmesh);
   }
   #endif
   /// @} Constructor
@@ -824,18 +830,11 @@ private:
   }
 
   /// Initialize some global data structures such as vertex id.
-  void init(const TriangleMesh& tmesh,
-            VertexPointMap vpm)
+  void init(const TriangleMesh& tmesh)
   {
-    // copy the input FaceGraph into a mTriangleMesh
-    CGAL::FaceGraph_to_Polyhedron_3<TriangleMesh,
-                                    VertexPointMap,
-                                    typename mTriangleMesh::HalfedgeDS,
-                                    false> modifier(tmesh, vpm);
+    copy_face_graph(tmesh, m_tmesh);
 
-    m_tmesh.delegate(modifier);
-
-    // copy input vertices to keep correspondance
+    // copy input vertices to keep correspondence
     typename boost::graph_traits<mTriangleMesh>::vertex_iterator vit=vertices(m_tmesh).first;
     BOOST_FOREACH(Input_vertex_descriptor vd, vertices(tmesh) )
       (*vit++)->vertices.push_back(vd);
@@ -887,7 +886,7 @@ private:
     m_edge_weight.reserve(2 * num_edges(m_tmesh));
     BOOST_FOREACH(halfedge_descriptor hd, halfedges(m_tmesh))
     {
-      m_edge_weight.push_back(m_weight_calculator(hd, m_tmesh, m_traits));
+      m_edge_weight.push_back(m_weight_calculator(hd));
     }
   }
 
@@ -1118,8 +1117,7 @@ private:
 
   void normalize(Vector& v)
   {
-    double norm = std::sqrt(m_traits.compute_squared_length_3_object()(v));
-    v = m_traits.construct_divided_vector_3_object()(v, norm);
+    CGAL::Polygon_mesh_processing::internal::normalize(v, m_traits);
   }
 
   /// Project the vertex `vk` to the line of `vs` and `vt`.
@@ -1324,12 +1322,22 @@ private:
   /// Compute an approximate vertex normal for all vertices.
   void compute_vertex_normal()
   {
+    namespace PMP = CGAL::Polygon_mesh_processing;
+
+    boost::unordered_map<face_descriptor, Vector> normals;
+    boost::associative_property_map<
+      boost::unordered_map<face_descriptor, Vector> > normals_pmap(normals);
+    PMP::compute_face_normals(m_tmesh, normals_pmap);
+
     m_normals.resize(num_vertices(m_tmesh));
 
     BOOST_FOREACH(vertex_descriptor v, vertices(m_tmesh))
     {
       int vid = static_cast<int>(get(m_vertex_id_pmap, v));
-      m_normals[vid] = internal::get_vertex_normal(*v, m_traits);
+      m_normals[vid] = PMP::compute_vertex_normal(v
+                          , m_tmesh
+                          , PMP::parameters::geom_traits(m_traits)
+                          .face_normal_map(normals_pmap));
     }
   }
 

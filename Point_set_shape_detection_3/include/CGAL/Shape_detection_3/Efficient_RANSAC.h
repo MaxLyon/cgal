@@ -210,6 +210,26 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
     }
 
     /*!
+      Retrieves the point property map.
+    */
+    const Point_map& point_map() const { return m_point_pmap; }
+    
+    /*!
+      Retrieves the normal property map.
+    */
+    const Normal_map& normal() const { return m_normal_pmap; }
+
+
+    Input_iterator input_iterator_first() const
+    {
+      return m_input_iterator_first;
+    }
+    Input_iterator input_iterator_beyond() const
+    {
+      return m_input_iterator_beyond;
+    }
+
+    /*!
       Sets the input data. The range must stay valid
       until the detection has been performed and the access to the
       results is no longer required. The data in the input is reordered by the methods
@@ -279,7 +299,7 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
         if (s) {
           subsetSize >>= 1;
           for (std::size_t i = 0;i<subsetSize;i++) {
-            std::size_t index = default_random(2);
+            std::size_t index = get_default_random()(2);
             index = index + (i<<1);
             index = (index >= remainingPoints) ? remainingPoints - 1 : index;
             indices[i] = index;
@@ -298,12 +318,14 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
           m_direct_octrees[s] = new Direct_octree(
             m_traits, last + 1,
             last + subsetSize + 1,
+            m_point_pmap, m_normal_pmap,
             remainingPoints - subsetSize);
         }
         else
           m_direct_octrees[0] = new Direct_octree(
             m_traits, m_input_iterator_first,
-            m_input_iterator_first + (subsetSize), 
+            m_input_iterator_first + (subsetSize),
+            m_point_pmap, m_normal_pmap,
           0);
 
         m_available_octree_sizes[s] = subsetSize;
@@ -313,7 +335,8 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
       }
 
       m_global_octree = new Indexed_octree(
-        m_traits, m_input_iterator_first, m_input_iterator_beyond);
+        m_traits, m_input_iterator_first, m_input_iterator_beyond,
+        m_point_pmap, m_normal_pmap);
       m_global_octree->createTree();
 
       return true;
@@ -471,7 +494,7 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
             bool done = false;
             do {
               do 
-              first_sample = default_random(m_num_available_points);
+              first_sample = get_default_random()(m_num_available_points);
               while (m_shape_index[first_sample] != -1);
 
               done = m_global_octree->drawSamplesFromCellContainingPoint(
@@ -696,7 +719,7 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
   
             candidates.resize(end);
           }
-          keep_searching = (stop_probability(m_options.min_points,
+        keep_searching = (stop_probability(m_options.min_points,
             m_num_available_points - num_invalid,
             generated_candidates, 
             m_global_octree->maxLevel())
@@ -757,7 +780,7 @@ shape. The implementation follows \cgalCite{schnabel2007efficient}.
 
   private:
     int select_random_octree_level() {
-      return (int) default_random(m_global_octree->maxLevel() + 1);
+      return (int) get_default_random()(m_global_octree->maxLevel() + 1);
     }
 
     Shape* get_best_candidate(std::vector<Shape* >& candidates,

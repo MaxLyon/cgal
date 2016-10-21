@@ -1,3 +1,4 @@
+#define CGAL_COREFINEMENT_DO_REPORT_SELF_INTERSECTIONS
 #define CGAL_USE_SEGMENT_APPROACH
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #ifdef CGAL_USE_SEGMENT_APPROACH
@@ -10,7 +11,6 @@
 #include "Scene_polyhedron_item.h"
 #include "Polyhedron_type.h"
 #include <CGAL/Three/Polyhedron_demo_plugin_interface.h>
-#include <CGAL/Three/Polyhedron_demo_plugin_helper.h>
 
 #include "Scene_polylines_item.h"
 
@@ -26,7 +26,7 @@
 using namespace CGAL::Three;
 class Polyhedron_demo_intersection_plugin :
   public QObject,
-  public Polyhedron_demo_plugin_helper
+  public Polyhedron_demo_plugin_interface
 {
   Q_OBJECT
   Q_INTERFACES(CGAL::Three::Polyhedron_demo_plugin_interface)
@@ -42,11 +42,10 @@ public:
     return QList<QAction*>() << actionPolyhedronIntersection_3;
   }
 
-  void init(QMainWindow* mainWindow, CGAL::Three::Scene_interface* scene_interface) {
+  void init(QMainWindow* mw, CGAL::Three::Scene_interface* scene_interface, Messages_interface*) {
     this->scene = scene_interface;
-    this->mw = mainWindow;
-    actionPolyhedronIntersection_3 = new QAction("Intersect polyhedra (A/B)", mw);
-    actionPolyhedronIntersection_3->setProperty("subMenuName", "Operations on polyhedra");
+    actionPolyhedronIntersection_3 = new QAction("Intersect Polyhedra (A/B)", mw);
+    actionPolyhedronIntersection_3->setProperty("subMenuName", "Operations on Polyhedra");
     if(actionPolyhedronIntersection_3) {
       connect(actionPolyhedronIntersection_3, SIGNAL(triggered()),
               this, SLOT(intersection()));
@@ -56,6 +55,7 @@ public:
 private:
 
   QAction*  actionPolyhedronIntersection_3;
+  Scene_interface *scene;
 
 public Q_SLOTS:
   void intersection();
@@ -208,10 +208,14 @@ void Polyhedron_demo_intersection_plugin::intersection()
 #endif
   std::cout << "ok (" << time.elapsed() << " ms)" << std::endl;
 
-  new_item->setColor(Qt::green);
-  new_item->setRenderingMode(Wireframe);
-  scene->addItem(new_item);
-  new_item->invalidate_buffers();
+  if (new_item->polylines.empty())
+    delete new_item;
+  else{
+    new_item->setColor(Qt::green);
+    new_item->setRenderingMode(Wireframe);
+    scene->addItem(new_item);
+    new_item->invalidateOpenGLBuffers();
+  }
 
   QApplication::restoreOverrideCursor();
 }

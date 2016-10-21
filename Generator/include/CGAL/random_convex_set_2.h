@@ -31,7 +31,8 @@
 #include <algorithm>
 #include <numeric>
 #include <CGAL/Random_convex_set_traits_2.h>
-#include <CGAL/centroid.h>
+#include <boost/functional.hpp>
+#include <boost/foreach.hpp>
 
 namespace CGAL {
 
@@ -48,7 +49,6 @@ random_convex_set_2( std::size_t n,
   using std::back_inserter;
   using std::accumulate;
   using std::transform;
-  using std::bind2nd;
   using std::sort;
   using std::partial_sum;
   using std::less;
@@ -75,14 +75,21 @@ random_convex_set_2( std::size_t n,
   CGAL::cpp11::copy_n( pg, n, back_inserter( points));
 
   // compute centroid of points:
-  Point_2 centroid = CGAL::centroid( points.begin(), points.end(), t );
+  // Point_2 centroid = CGAL::centroid( points.begin(), points.end(), t );
+
+  Point_2 centroid = t.origin();
+
+  BOOST_FOREACH(const Point_2& p, points){
+    centroid = sum(centroid, p);
+  }
+  centroid = scale(centroid, FT(1)/FT(n));
 
   // translate s.t. centroid == origin:
   transform(
     points.begin(),
     points.end(),
     points.begin(),
-    bind2nd( Sum(), scale( centroid, FT( -1))));
+    boost::bind2nd( Sum(), scale( centroid, FT( -1))));
 
   // sort them according to their direction's angle
   // w.r.t. the positive x-axis:
@@ -93,14 +100,18 @@ random_convex_set_2( std::size_t n,
     points.begin(), points.end(), points.begin(), Sum());
 
   // and compute its centroid:
-  Point_2 new_centroid = CGAL::centroid( points.begin(), points.end(), t );
+  Point_2 new_centroid = t.origin();
 
+  BOOST_FOREACH(const Point_2& p, points){
+    new_centroid = sum(new_centroid, p);
+  }
+  new_centroid = scale(new_centroid, FT(1)/FT(n));
   // translate s.t. centroids match:
   transform(
     points.begin(),
     points.end(),
     points.begin(),
-    bind2nd( Sum(), sum( centroid,
+    boost::bind2nd( Sum(), sum( centroid,
                          scale( new_centroid, FT( -1)))));
 
   // compute maximal coordinate:
@@ -116,7 +127,7 @@ random_convex_set_2( std::size_t n,
     points.begin(),
     points.end(),
     o,
-    bind2nd( Scale(), FT( pg.range()) / maxcoord));
+    boost::bind2nd( Scale(), FT( pg.range()) / maxcoord));
 
 } // random_convex_set_2( n, o, pg, t)
 

@@ -1,7 +1,7 @@
 # Created by the script cgal_create_cmake_script
 # This is the CMake script for compiling a CGAL application.
 
-project( Linear_cell_complex_examples )
+project( Linear_cell_complex_Examples )
 
 cmake_minimum_required(VERSION 2.8.11)
 if(POLICY CMP0043)
@@ -15,7 +15,7 @@ endif()
 # include("CMakeLCCViewerQt.inc")
 
 # If you don't want to visualize, use the following line (otherwise comment it)
-find_package(CGAL QUIET COMPONENTS Core)
+find_package(CGAL QUIET)
 
 # For Gprof.
 # ADD_DEFINITIONS("-pg")

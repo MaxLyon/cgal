@@ -2,14 +2,14 @@
 # This is the CMake script for compiling a CGAL application.
 
 
-project( Triangulation_3_Demo )
+project( Triangulation_3_Geomview_demos_Demo )
 
 cmake_minimum_required(VERSION 2.8.11)
 if(POLICY CMP0043)
   cmake_policy(SET CMP0043 OLD)
 endif()
 
-find_package(CGAL QUIET COMPONENTS Core )
+find_package(CGAL QUIET)
 
 if ( CGAL_FOUND )
 

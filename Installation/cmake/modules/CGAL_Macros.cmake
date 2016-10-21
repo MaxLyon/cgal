@@ -282,74 +282,68 @@ if( NOT CGAL_MACROS_FILE_INCLUDED )
       # Nothing to add for Core
 
       if (${component} STREQUAL "ImageIO")
-        find_package( OpenGL QUIET )
         find_package( ZLIB QUIET )
+
+        if(ZLIB_FOUND)
+          cache_set(CGAL_ImageIO_USE_ZLIB "ON")
+          add_definitions("-DCGAL_USE_ZLIB")
+          include_directories( SYSTEM ${ZLIB_INCLUDE_DIR} )
+        endif(ZLIB_FOUND)
+
       endif()
 
       if (${component} STREQUAL "Qt5")
-        find_package( OpenGL QUIET )
-        find_package( Qt5 QUIET COMPONENTS OpenGL Svg )
+        find_package(OpenGL QUIET)
+        find_package(Qt5 COMPONENTS OpenGL Gui Core Script ScriptTools QUIET)
       endif()
 
     else(WITH_CGAL_${component})
 
       # now we are talking about 3rd party libs
+      list( FIND CGAL_CONFIGURED_LIBRARIES "CGAL_${component}" POSITION )
+      if ( "${POSITION}" EQUAL "-1" ) # if component is not a CGAL_<lib>
 
-      if ( ${component} STREQUAL "ALL_PRECONFIGURED_LIBS" )
-
-        if (CGAL_ALLOW_ALL_PRECONFIGURED_LIBS_COMPONENT)
-          message( STATUS "External libraries are all used")
-          foreach ( CGAL_3RD_PARTY_LIB ${CGAL_SUPPORTING_3RD_PARTY_LIBRARIES})
-            if (${CGAL_3RD_PARTY_LIB}_FOUND)
-              use_lib( ${CGAL_3RD_PARTY_LIB} ${${CGAL_3RD_PARTY_LIB}_USE_FILE})
-            endif()
-          endforeach()
-        else()
-          message( SEND_ERROR "Component ALL_PRECONFIGURED_LIBS only allow with CGAL_ALLOW_ALL_PRECONFIGURED_LIBS_COMPONENT=ON")
+        if (NOT DEFINED CGAL_EXT_LIB_${component}_PREFIX)
+          set(CGAL_EXT_LIB_${component}_PREFIX ${component})
         endif()
 
-      else()
+        set( vlib "${CGAL_EXT_LIB_${component}_PREFIX}" )
 
-        list( FIND CGAL_CONFIGURED_LIBRARIES "CGAL_${component}" POSITION )
-        if ( "${POSITION}" EQUAL "-1" ) # if component is not a CGAL_<lib>
+        if ( NOT CGAL_IGNORE_PRECONFIGURED_${component} AND ${vlib}_FOUND)
 
-          if (NOT DEFINED CGAL_EXT_LIB_${component}_PREFIX)
-            set(CGAL_EXT_LIB_${component}_PREFIX ${component})
-          endif()
+          ####message( STATUS "External library ${component} has been preconfigured")
+          use_lib( ${component} ${${vlib}_USE_FILE})
 
-          set( vlib "${CGAL_EXT_LIB_${component}_PREFIX}" )
-
-          if ( NOT CGAL_IGNORE_PRECONFIGURED_${component} AND ${vlib}_FOUND)
-
-            ####message( STATUS "External library ${component} has been preconfigured")
-            use_lib( ${component} ${${vlib}_USE_FILE})
-
-          else()
-
-            ####message( STATUS "External library ${component} has not been preconfigured")
-      if (${component} STREQUAL "ImageIO")
-        find_package( OpenGL )
-        find_package( ZLIB )
-      endif()
-
-      if (${component} STREQUAL "Qt5")
-                set(CGAL_${component}_FOUND TRUE)
-                find_package( OpenGL )
-                find_package (Qt5 COMPONENTS OpenGL Gui Core Script ScriptTools)
-      endif()
-            ####message( STATUS "External library ${vlib} after find")
-            if (${vlib}_FOUND)
-              ####message( STATUS "External library ${vlib} about to be used")
-              use_lib( ${component} ${${vlib}_USE_FILE})
-            endif()
-
-          endif()
         else()
 
-          if (NOT WITH_CGAL_${component}) 
-            message(STATUS "NOTICE: The CGAL_${component} library seems to be required but is not build. Thus, it is expected that some executables will not be compiled.")
+          ####message( STATUS "External library ${component} has not been preconfigured")
+          if (${component} STREQUAL "ImageIO")
+            find_package( ZLIB QUIET )
+
+            if(ZLIB_FOUND)
+              cache_set(CGAL_ImageIO_USE_ZLIB "ON")
+              add_definitions("-DCGAL_USE_ZLIB")
+              include_directories( SYSTEM ${ZLIB_INCLUDE_DIR} )
+            endif(ZLIB_FOUND)
+
           endif()
 
+          if (${component} STREQUAL "Qt5")
+            set(CGAL_${component}_FOUND TRUE)
+            find_package(OpenGL QUIET)
+            find_package(Qt5 COMPONENTS OpenGL Gui Core Script ScriptTools QUIET)
+          endif()
+          ####message( STATUS "External library ${vlib} after find")
+          if (${vlib}_FOUND)
+            ####message( STATUS "External library ${vlib} about to be used")
+            use_lib( ${component} ${${vlib}_USE_FILE})
+          endif()
+
+        endif()
+      else()
+
+        if (NOT WITH_CGAL_${component}) 
+          message(STATUS "NOTICE: The CGAL_${component} library seems to be required but is not build. Thus, it is expected that some executables will not be compiled.")
         endif()
 
       endif()
@@ -417,8 +411,13 @@ if( NOT CGAL_MACROS_FILE_INCLUDED )
 
   macro( create_CGALconfig_files )
 
+    include(CMakePackageConfigHelpers)
+
     # CGALConfig.cmake is platform specific so it is generated and stored in the binary folder.
     configure_file("${CGAL_MODULES_DIR}/CGALConfig_binary.cmake.in"  "${CMAKE_BINARY_DIR}/CGALConfig.cmake"        @ONLY)
+    write_basic_package_version_file("${CMAKE_BINARY_DIR}/CGALConfigVersion.cmake"
+      VERSION "${CGAL_MAJOR_VERSION}.${CGAL_MINOR_VERSION}.${CGAL_BUILD_VERSION}"
+      COMPATIBILITY SameMajorVersion)
 
     # There is also a version of CGALConfig.cmake that is prepared in case CGAL in installed in CMAKE_INSTALL_PREFIX.
     configure_file("${CGAL_MODULES_DIR}/CGALConfig_install.cmake.in" "${CMAKE_BINARY_DIR}/config/CGALConfig.cmake" @ONLY)
@@ -467,7 +466,6 @@ if( NOT CGAL_MACROS_FILE_INCLUDED )
       endif()
     endif()
   endmacro()
-
 
 ## All the following macros are probably unused. -- Laurent Rineau, 2011/07/21
 
@@ -703,6 +701,7 @@ function(process_CGAL_subdirectory entry subdir type_name)
   if(ADD_SUBDIR)
     message("\n-- Configuring ${subdir} in ${subdir}/${ENTRY_DIR_NAME}")
     if(EXISTS ${entry}/CMakeLists.txt)
+      set(source_dir ${entry})
       add_subdirectory( ${entry} ${CMAKE_BINARY_DIR}/${subdir}/${ENTRY_DIR_NAME} )
     else()
       if(CGAL_CREATE_CMAKE_SCRIPT)
@@ -713,9 +712,14 @@ function(process_CGAL_subdirectory entry subdir type_name)
           RESULT_VARIABLE RESULT_VAR OUTPUT_QUIET)
         if(NOT RESULT_VAR)
 #          message("Subdir ${CMAKE_BINARY_DIR}/${subdir}/${ENTRY_DIR_NAME}")
-          add_subdirectory( "${CMAKE_BINARY_DIR}/${subdir}/${ENTRY_DIR_NAME}" "${CMAKE_BINARY_DIR}/${subdir}/${ENTRY_DIR_NAME}")
+          set(source_dir "${CMAKE_BINARY_DIR}/${subdir}/${ENTRY_DIR_NAME}")
+          add_subdirectory( "${source_dir}" "${CMAKE_BINARY_DIR}/${subdir}/${ENTRY_DIR_NAME}")
         endif()
       endif()
+    endif()
+    if(source_dir AND type_name STREQUAL "demo")
+      # Do not test demos
+      set_property(DIRECTORY "${entry}"	PROPERTY CGAL_NO_TESTING TRUE)
     endif()
   else()
     message(STATUS "${subdir}/${ENTRY_DIR_NAME} is in dont_submit")

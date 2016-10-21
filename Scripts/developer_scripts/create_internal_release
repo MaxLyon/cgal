@@ -7,6 +7,7 @@ use Cwd;
 use File::Find;
 use Getopt::Std;
 use File::Spec;
+use File::Temp;
 use Archive::Tar;
 use Archive::Tar::File;
 use File::Copy;
@@ -126,6 +127,7 @@ sub list_packages($) {
     my $package_full_path = File::Spec->catdir($packages_directory, $package_name);
     next if $package_name =~ /^\..*$/;
     next if (! -d $package_full_path );
+    next if ($package_full_path =~ /Maintenance$/); # skip Maintenance package
     $LISTOFALLPACKAGES{$package_name} = $packages_directory;
   }
   closedir(PACKAGESDIR);
@@ -159,8 +161,17 @@ sub install_packages() {
     }
     print "\n";
     system(@command);
-    move("$RELEASEDIR/temppack.tar", "$RELEASEDIR/$VERSION/");
 
+    # generate the list of header file per package that not in an internal subdirectory. Files start with CGAL
+    $tempdir = File::Temp->newdir();
+    if ( -d "$package_full_path/include" ) {
+      @filelistcmd = ('tar', '-tf', "$RELEASEDIR/temppack.tar", '--wildcards', "./include/\*\*.h",
+                      "--transform=s/.\\\/include\\\///", '--show-transformed-names',
+                      '--exclude=**/internal', "--index-file=$tempdir/$package_name.txt");
+      system(@filelistcmd);
+    }
+
+    move("$RELEASEDIR/temppack.tar", "$RELEASEDIR/$VERSION/");
 
     chdir "$RELEASEDIR/$VERSION" or die;
     my $tar = Archive::Tar->new;
@@ -192,6 +203,14 @@ sub install_packages() {
       }
     }
     system('tar', '-xf', "temppack.tar");
+    if ( -e "$tempdir/$package_name.txt" ) {
+      if ( -d "$RELEASEDIR/$VERSION/doc/$package_name/" ) {
+        system("mv", ,"$tempdir/$package_name.txt", "$RELEASEDIR/$VERSION/doc/$package_name/filelist.txt");
+      } else {
+        system("rm", ,"$tempdir/$package_name.txt");
+      }
+    }
+
 #    $tmp_package_name = "temp_${package_name}";
 #    system("mv", "$package_name", "$tmp_package_name");
 #    opendir packagename, "$tmp_package_name";

@@ -1,6 +1,8 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
 #include <CGAL/Polyhedron_3.h>
+#include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
 #include <CGAL/Surface_mesh.h>
 
 #include <CGAL/Polygon_mesh_processing/orient_polygon_soup.h>
@@ -13,16 +15,16 @@
 #include <algorithm>
 #include <cstdlib>
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef K::Point_3 Point_3;
-typedef CGAL::Polyhedron_3<K> Polyhedron;
-typedef CGAL::Surface_mesh<Point_3> Surface_mesh;
+typedef CGAL::Exact_predicates_inexact_constructions_kernel Epic;
+typedef CGAL::Exact_predicates_exact_constructions_kernel Epec;
 
+template <typename K>
 std::istream& read_soup(
   std::istream& stream,
-  std::vector<Point_3>& points,
+    std::vector<typename K::Point_3>& points,
   std::vector< std::vector<std::size_t> >& polygons)
 {
+  typedef typename K::Point_3 Point_3;
   CGAL::File_scanner_OFF scanner(stream);
   points.resize(scanner.size_of_vertices());
   polygons.resize(scanner.size_of_facets());
@@ -54,7 +56,7 @@ std::istream& read_soup(
   return stream;
 }
 
-void sufffle_off(const char* fname_in, const char* fname_out)
+void shuffle_off(const char* fname_in, const char* fname_out)
 {
   std::ifstream input(fname_in);
   if ( !input ){
@@ -93,13 +95,18 @@ void sufffle_off(const char* fname_in, const char* fname_out)
   }
 }
 
-int main(int,char** ) {
+template <typename K>
+int test_orient() {
+  typedef typename K::Point_3 Point_3;
+  typedef CGAL::Polyhedron_3<K> Polyhedron;
+  typedef CGAL::Surface_mesh<Point_3> Surface_mesh;
+
   std::vector<Point_3> points;
   std::vector< std::vector<std::size_t> > polygons;
 
-  sufffle_off("data/elephant.off", "elephant-shuffled.off");
+  shuffle_off("data/elephant.off", "elephant-shuffled.off");
   std::ifstream input("elephant-shuffled.off");
-  if ( !input || !read_soup(input, points, polygons)){
+  if ( !input || !read_soup<K>(input, points, polygons)){
     std::cerr << "Error: can not shuffled file.\n";
     return 1;
   }
@@ -121,5 +128,12 @@ int main(int,char** ) {
     out << poly;
     out.close();
   }
+  return 0;
+}
+
+int main()
+{
+  assert(test_orient<Epic>() == 0);
+  assert(test_orient<Epec>() == 0);
   return 0;
 }

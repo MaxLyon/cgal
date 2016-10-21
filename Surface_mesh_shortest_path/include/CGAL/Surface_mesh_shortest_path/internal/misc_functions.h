@@ -20,9 +20,8 @@
 #ifndef CGAL_SURFACE_MESH_SHORTEST_PATH_INTERNAL_MISC_H
 #define CGAL_SURFACE_MESH_SHORTEST_PATH_INTERNAL_MISC_H
 
+#include <boost/graph/graph_traits.hpp>
 #include <CGAL/boost/graph/properties.h>
-#include <CGAL/boost/graph/properties_Polyhedron_3.h>
-#include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
 #include <CGAL/boost/graph/iterator.h>
 
 namespace CGAL {
@@ -37,7 +36,7 @@ Triangle_3 triangle_from_halfedge(typename boost::graph_traits<Triangle_mesh>::h
   halfedge_descriptor e0 = edge;
   halfedge_descriptor e1 = next(edge, g);
 
-  return Triangle_3(get(vertexPointMap, boost::source(e0, g)), get(vertexPointMap, boost::target(e0, g)), get(vertexPointMap, boost::target(e1, g)));
+  return Triangle_3(get(vertexPointMap, source(e0, g)), get(vertexPointMap, target(e0, g)), get(vertexPointMap, target(e1, g)));
 }
 
 template <class Triangle_3, class Triangle_mesh>

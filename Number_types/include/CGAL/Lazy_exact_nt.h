@@ -47,6 +47,10 @@
 
 #include <CGAL/Sqrt_extension_fwd.h>
 #include <CGAL/Kernel/mpl.h>
+#include <CGAL/tss.h>
+
+#include <CGAL/IO/io.h>
+
 
 /*
  * This file contains the definition of the number type Lazy_exact_nt<ET>,
@@ -459,15 +463,23 @@ public :
   Interval_nt_advanced approx_adv() const
   { return this->ptr()->approx(); }
 
+private:
+  static double & relative_precision_of_to_double_internal()
+  {
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(double, relative_precision_of_to_double, 0.00001);
+      return relative_precision_of_to_double;
+  }
+
+public:
   static const double & get_relative_precision_of_to_double()
   {
-      return relative_precision_of_to_double;
+    return relative_precision_of_to_double_internal();
   }
 
   static void set_relative_precision_of_to_double(const double & d)
   {
       CGAL_assertion((0 < d) & (d < 1));
-      relative_precision_of_to_double = d;
+      relative_precision_of_to_double_internal() = d;
   }
 
   bool identical(const Self& b) const
@@ -481,13 +493,8 @@ public :
   bool identical(const T&) const
   { return false; }
 
-private:
-  static double relative_precision_of_to_double;
 };
 
-
-template <typename ET>
-double Lazy_exact_nt<ET>::relative_precision_of_to_double = 0.00001;
 
 
 template <typename ET1, typename ET2>
@@ -1302,7 +1309,7 @@ std::istream &
 operator>> (std::istream & is, Lazy_exact_nt<ET> & a)
 {
   ET e;
-  is >> e;
+  internal::read_float_or_quotient(is, e);
   if (is)
     a = e;
   return is;
@@ -1425,6 +1432,7 @@ namespace Eigen {
     // typedef CGAL::Lazy_exact_nt<ET> NonInteger;
     typedef CGAL::Lazy_exact_nt<typename NumTraits<ET>::NonInteger> NonInteger;
     typedef CGAL::Lazy_exact_nt<ET> Nested;
+    typedef CGAL::Lazy_exact_nt<ET> Literal;
 
     static inline Real epsilon() { return 0; }
     static inline Real dummy_precision() { return 0; }

@@ -48,6 +48,7 @@ Scene::Scene()
     startTimer(0);
     ready_to_cut = false;
     are_buffers_initialized = false;
+    gl_init = false;
 
 }
 
@@ -590,6 +591,8 @@ void Scene::update_bbox()
 
 void Scene::draw(QGLViewer* viewer)
 {       
+    if(!gl_init)
+        initGL();
     if(!are_buffers_initialized)
         initialize_buffers();
     QColor color;
@@ -1108,7 +1111,6 @@ void Scene::compute_distance_function(const Tree& tree)
 {
     // Get transformation
     Aff_transformation t = frame_transformation();
-
     m_max_distance_function = FT(0);
     FT diag = bbox_diag();
 
@@ -1123,7 +1125,6 @@ void Scene::compute_distance_function(const Tree& tree)
         for(int j=0 ; j<m_grid_size ; ++j)
         {
             FT y = -diag/fd + FT(j)/FT(m_grid_size) * dy;
-
             Point query = t( Point(x,y,z) );
             FT dist = CGAL::sqrt( tree.squared_distance(query) );
 
@@ -1314,7 +1315,7 @@ void Scene::deactivate_cutting_plane()
     disconnect(m_frame, SIGNAL(modified()), this, SLOT(cutting_plane()));
     m_view_plane = false;
 }
-void Scene::initGL(Viewer * /* viewer */)
+void Scene::initGL()
 {
     gl = new QOpenGLFunctions_2_1();
    if(!gl->initializeOpenGLFunctions())
@@ -1325,6 +1326,7 @@ void Scene::initGL(Viewer * /* viewer */)
 
     gl->glGenTextures(1, &textureId);
     compile_shaders();
+    gl_init = true;
 }
 
 void Scene::timerEvent(QTimerEvent *)

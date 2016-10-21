@@ -11,7 +11,8 @@ Delaunay triangulation.
 
 \tparam TriangulationDataStructure_3 is the triangulation data structure. 
 It has the default value `Triangulation_data_structure_3<Triangulation_vertex_base_3<DelaunayTriangulationTraits_3>, 
-								  Delaunay_triangulation_cell_base_3<DelaunayTriangulationTraits_3> >`. 
+								  Delaunay_triangulation_cell_base_3<DelaunayTriangulationTraits_3> >`.
+`Default` may be used.
 
 \tparam LocationPolicy is a tag which must be a `Location_policy<Tag>`: 
 either `Fast_location` or `Compact_location`. 
@@ -35,14 +36,14 @@ manual \ref Triangulation3exfastlocation.
 
 \tparam SurjectiveLockDataStructure is an optional parameter to specify the type of the spatial lock data structure.
         It is only used if the triangulation data structure used is concurrency-safe (i.e.\ when 
-        TriangulationDataStructure_3::Concurrency_tag is Parallel_tag).
+        `TriangulationDataStructure_3::Concurrency_tag` is `Parallel_tag`).
         It must be a model of the `SurjectiveLockDataStructure` concept,
         with `Object` being a `Point`.
         The default value is `Spatial_lock_grid_3<Tag_priority_blocking>` if
         the triangulation data structure is concurrency-safe, and `void` otherwise.
         In order to use concurrent operations, the user must provide a 
         reference to a `SurjectiveLockDataStructure`
-        instance via the constructor or `Triangulation_3::set_lock_data_structure`.
+        instance via the constructor or `Triangulation_3::set_lock_data_structure()`.
 
 If `TriangulationDataStructure_3::Concurrency_tag` is `Parallel_tag`, some operations, 
 such as insertion/removal of a range of points, are performed in parallel. See 
@@ -122,7 +123,7 @@ Lock_data_structure *lock_ds = NULL);
 /*!
 Copy constructor. 
 The pointer to the lock data structure is not copied. Thus, the copy won't be
-concurrency-safe as long as the user has not called `Triangulation_3::set_lock_data_structure`.
+concurrency-safe as long as the user has not called `Triangulation_3::set_lock_data_structure()`.
 */ 
 Delaunay_triangulation_3 (const Delaunay_triangulation_3 & dt1); 
 

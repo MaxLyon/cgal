@@ -15,12 +15,18 @@ cmake . # configure \cgal
 make # build the \cgal libraries
 </PRE>
 
-Compiling an example shipped with \cgal is similar simple:
+Compiling an example or a demo shipped with \cgal is similarly simple:
 
 <PRE>
 cd examples/Straight_skeleton_2 # go to an example directory
 cmake -DCGAL_DIR=$HOME/CGAL-\cgalReleaseNumber . # configure the examples
 make # build the examples 
+</PRE>
+
+<PRE>
+cd demo/Straight_skeleton_2 # go to a demo directory
+cmake -DCGAL_DIR=$HOME/CGAL-\cgalReleaseNumber . # configure the demos
+make # build the demos 
 </PRE>
 
 Compiling an own non-shipped program is also close:
@@ -293,7 +299,7 @@ We next list the libraries and essential 3rd party software
 
 | Library   | CMake Variable | Functionality | Dependencies |
 | :-------- | :------------- | :------------ | :----------- |
-| `%CGAL`   | none           | Main library  | \sc{Gmp}, \sc{Mpfr}, \sc{Boost} (headers), Boost.Thread and Boost.System (library) |
+| `%CGAL`   | none           | Main library  | \sc{Gmp}, \sc{Mpfr}, \sc{Boost} (headers), Boost.Thread and Boost.System (library) for compilers not supporting the keywords `threadlocal` and the class `mutex` |
 | `CGAL_Core` | `WITH_CGAL_Core`  | The CORE library for algebraic numbers.\cgalFootnote{CGAL_Core is not part of \cgal, but a custom version of the \sc{Core} library distributed by \cgal for the user convenience and it has it's own license.}  | \sc{Gmp} and \sc{Mpfr} |
 | `CGAL_ImageIO` | `WITH_CGAL_ImageIO` | Utilities to read and write image files  | \sc{OpenGL}, \sc{zlib}, \sc{Vtk}(optional) |
 | `CGAL_Qt5`  | `WITH_CGAL_Qt5` | `QGraphicsView` support for \sc{Qt}5-based demos | \sc{Qt}5 and \sc{OpenGL} |
@@ -317,6 +323,21 @@ variable `BUILD_SHARED_LIBS` to `FALSE`. If you use
 
 These setting affect the variants of third-party libraries (see next
 section) selected whenever the choice is available.
+
+\subsection subsection_headeronly Header-only option
+
+Since \cgal 4.9, \cgal can be used in headers only mode, i.e. without compiling the \cgal libraries and linking with these libraries when compiling examples, tests and demos. This possibility can be enabled by setting the value of the CMake variable `CGAL_HEADER_ONLY` to `ON`. CMake version 3.0.0 or higher is required to use this option.
+
+One advantage of using \cgal in header-only mode is that you do not need to compile and install \cgal libraries before compiling a given example or demo. Note that even in header-only mode we still need to run cmake on \cgal in order to generate different configuration files. So, setting up \cgal becomes now:
+
+<PRE>
+cd CGAL-\cgalReleaseNumber # go to \cgal directory
+cmake . # configure \cgal
+</PRE>
+
+and we do not need to run make anymore.
+
+There is one possible problem when using \cgal in header-only mode on a Windows operating system when compiling a program using several modules (executable programs or dynamic-link libraries DLL). If two different modules use the same static variable, this variable is defined independently in each of these modules. If one module modifies the value of this variable, it will not be modified in the other module, which could induce an unexpected behavior. In \cgal, this concerns only a few specific variables: the <A HREF="http://doc.cgal.org/latest/Generator/classCGAL_1_1Random.html">default random</A>, the <A HREF="http://doc.cgal.org/latest/STL_Extension/group__PkgStlExtensionAssertions.html">failure behavior</A>, <A HREF="http://doc.cgal.org/latest/Stream_support/group__PkgIOstreams.html">IO mode</A>. One example is the following: if you change the default random in one DLL, then if you use the default random in another DLL, you will not obtain the modified default random but the original one.
 
 \section secessential3rdpartysoftware Essential Third Party Libraries 
 
@@ -350,7 +371,8 @@ installed as binaries.
 
 \cgal requires the \sc{Boost} libraries. In particular the header files
 and the threading library (`Boost.Thread` and
-`Boost.System` binaries). Version 1.48 (or higher) are needed.
+`Boost.System` binaries). Version 1.48 (or higher) are needed
+for compilers not supporting the keywords `threadlocal` and the class `mutex` (This is supported for \gcc 4.8 and later when using the \cpp 11 standard, and for Visual C++ starting with 2015, that is VC14).
 
 On Windows, as auto-linking is used, you also need the binaries of
 `Boost.Serialization` and `Boost.DateTime`, but the
@@ -360,9 +382,9 @@ not depend on the DLL's of those two libraries.
 In \cgal some demos and examples depend on `Boost.Program_options`.
 
 In case the \sc{Boost} libraries are not installed on your system already, you
-can obtain them from <A HREF="http://www.boost.org/">`http://www.boost.org/`</A>. For Windows you can download precompiled libraries
-from <A HREF="http://boost.teeks99.com/">`http://boost.teeks99.com/`</A>.
-Since `Boost.Thread` is required, make sure to either install the precompiled 
+can obtain them from <A HREF="http://www.boost.org/">`http://www.boost.org/`</A>. For Visual C++ you can download precompiled libraries
+from <A HREF="http://sourceforge.net/projects/boost/files/boost-binaries/">`http://sourceforge.net/projects/boost/files/boost-binaries/`</A>.
+For Visual C++ versions prior to 2015  `Boost.Thread` is required, so make sure to either install the precompiled 
 libraries for your compiler or build `libboost-thread` and `libboost-system`.
 
 As on Windows there is no canonical directory for where to find
@@ -1100,7 +1122,6 @@ Only the <I>directory</I> containing the header files of \sc{Eigen} 3.1 (or grea
 
 | Variable             | Description           | Type        |
 | :-                   | :-                    | :-             |
-| `EIGEN3_DIR` | Directory of \sc{EIGEN} default installation | Environment |
 | `EIGEN3_INCLUDE_DIR` | Directory containing the file `signature_of_eigen3_matrix_library` | CMake |
 | `EIGEN3_INC_DIR` | Idem | Environment |
 

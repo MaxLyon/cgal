@@ -26,6 +26,8 @@
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_triangle_primitive.h>
+#include <CGAL/utility.h>
+#include <boost/foreach.hpp>
 
 /// \cond SKIP_IN_MANUAL
 
@@ -156,7 +158,7 @@ double approximated_symmetric_Hausdorff_distance(
 {
   return (std::max)(
     approximated_Hausdorff_distance<Kernel>(triangles_1, triangles_2, targeted_precision),
-    approximated_Hausdorff_distance<Kernel>(triangles_1, triangles_2, targeted_precision)
+    approximated_Hausdorff_distance<Kernel>(triangles_2, triangles_1, targeted_precision)
   );
 }
 

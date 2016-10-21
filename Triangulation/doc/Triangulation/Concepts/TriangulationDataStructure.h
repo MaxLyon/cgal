@@ -305,7 +305,7 @@ out);
 
 /// @}
 
-/// \name Accessing the vertices
+/// \name Accessing the Vertices
 /// @{
 
 /*!
@@ -316,18 +316,14 @@ Vertex_handle vertex(Full_cell_handle c, const int i) const;
 
 /*!
 Returns the index of `c` as a neighbor of its `i`-th neighbor.
-\pre \f$0 \leq i \leq \f$`tds`.`current_dimension`()
-
-and `c!=Full_cell_handle()`.
+\pre \f$0 \leq i \leq \f$`tds`.`current_dimension`() and `c!=Full_cell_handle()`.
 */
 int mirror_index(Full_cell_handle c, int i) const;
 
 /*!
 Returns the vertex of the `i`-th neighbor of `c`
 that is not vertex of `c`.
-\pre \f$0 \leq i \leq \f$`tds`.`current_dimension`()
-
-and `c!=Full_cell_handle()`.
+\pre \f$0 \leq i \leq \f$`tds`.`current_dimension`() and `c!=Full_cell_handle()`.
 */
 Vertex_handle mirror_vertex(Full_cell_handle c, int i) const;
 
@@ -343,7 +339,7 @@ Vertex_iterator vertices_end();
 
 /// @}
 
-/// \name Accessing the full cells
+/// \name Accessing the Full Cells
 /// @{
 
 /*!
@@ -357,9 +353,7 @@ Full_cell_handle full_cell(Vertex_handle v) const;
 /*!
 Returns a `Full_cell_handle` pointing to the `Full_cell`
 opposite to the `i`-th vertex of `c`.
-\pre \f$0 \leq i \leq \f$`tds`.`current_dimension()`
-
-and `c != Full_cell_handle()`
+\pre \f$0 \leq i \leq \f$`tds`.`current_dimension()` and `c != Full_cell_handle()`
 */
 Full_cell_handle neighbor(Full_cell_handle c, int i) const;
 
@@ -401,7 +395,7 @@ int index_of_covertex(const Facet & f) const;
 
 /// @}
 
-/// \name Vertex insertion
+/// \name Vertex Insertion
 /// @{
 
 /*!
@@ -415,8 +409,7 @@ share the vertex `v`.
 Insertion in a full cell, \f$ d=2\f$
 \cgalFigureEnd
 
-\pre Current dimension is positive and `c` is a full cell of
-`tds`.
+\pre Current dimension is positive and `c` is a full cell of `tds`.
 */
 Vertex_handle insert_in_full_cell(Full_cell_handle c);
 
@@ -531,7 +524,7 @@ void set_current_dimension(int d);
 
 /// @}
 
-/// \name Vertex removal
+/// \name Vertex Removal
 /// @{
 
 /*!
@@ -599,7 +592,7 @@ delete_full_cells(ForwardIterator start, ForwardIterator end);
 
 /// @}
 
-/// \name Validity check
+/// \name Validity Check
 /// @{
 
 /*!
@@ -702,7 +695,7 @@ Full_cell_handle full_cell() const;
 
 /// @}
 
-/// \name Validity check
+/// \name Validity Check
 /// @{
 
 /*!
@@ -810,7 +803,7 @@ TDS_data;
 
 /// @}
 
-/// \name Access functions
+/// \name Access Functions
 /// @{
 
 /*!
@@ -905,7 +898,7 @@ Vertex_handle mirror_vertex(const int i, const int cur_dim) const;
 
 /// @}
 
-/// \name Update functions
+/// \name Update Functions
 /// @{
 
 /*!
@@ -976,7 +969,7 @@ bool has_neighbor(Full_cell_handle n, int & ret) const;
 
 /// @}
 
-/// \name Validity check
+/// \name Validity Check
 /// @{
 
 /*!

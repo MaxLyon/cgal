@@ -147,7 +147,10 @@ public:
 
   // Sets the dimension of the lowest dimensional face of the input 3D complex
   // that contains the vertex
-  void set_dimension(const int dimension) { dimension_ = dimension; }
+  void set_dimension(const int dimension) {
+    CGAL_assertion(dimension < 4);
+    dimension_ = short(dimension);
+  }
 
   // Tells if the vertex is marked as a special protecting ball
   bool is_special() const { return dimension_ < -1; }
@@ -155,7 +158,7 @@ public:
   // Marks or unmarks the vertex as a special protecting ball
   void set_special(bool special = true) {
     if(special != (dimension_ < -1) )
-      dimension_ = -2-dimension_;
+      dimension_ = short(-2-dimension_);
   }
 
   // Returns the index of the lowest dimensional face of the input 3D complex
@@ -205,19 +208,19 @@ public:
     cache_validity = false;
   }
 
-  void set_c2t3_cache(const int i, const int j)
+  void set_c2t3_cache(const std::size_t i, const std::size_t j)
   {
     number_of_incident_facets_ = i;
     number_of_components_ = j;
     cache_validity = true;
   }
 
-  int cached_number_of_incident_facets() const
+  std::size_t cached_number_of_incident_facets() const
   {
     return number_of_incident_facets_;
   }
     
-  int cached_number_of_components() const
+  std::size_t cached_number_of_components() const
   {
     return number_of_components_;
   }
@@ -232,8 +235,8 @@ public:
   }
 private:
 
-  int number_of_incident_facets_;
-  int number_of_components_; // number of components in the adjacency
+  std::size_t number_of_incident_facets_;
+  std::size_t number_of_components_; // number of components in the adjacency
   // graph of incident facets (in complex)
 
 
@@ -272,11 +275,11 @@ operator>>(std::istream &is, Mesh_vertex_base_3<GT,MD,Vb>& v)
   } else {
     CGAL::read(is, dimension);
   }
-  CGAL_assertion(dimension >= 0);
-  CGAL_assertion(dimension < 4);
-  typename Vertex::Index index = 
-    internal::Mesh_3::Read_mesh_domain_index<MD>()(dimension, is);
   v.set_dimension(dimension);
+  CGAL_assertion(v.in_dimension() >= -1);
+  CGAL_assertion(v.in_dimension() < 4);
+  typename Vertex::Index index =
+    internal::Mesh_3::Read_mesh_domain_index<MD>()(v.in_dimension(), is);
   v.set_index(index);
   return is;
 }

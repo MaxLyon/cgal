@@ -96,11 +96,12 @@ h1 {
 \package_listing{Skin_surface_3}
 \package_listing{Mesh_3}
 
-\section PartReconstruction Surface Reconstruction
+\section PartReconstruction Shape Reconstruction
 
 \package_listing{Poisson_surface_reconstruction_3}
 \package_listing{Scale_space_reconstruction_3}
 \package_listing{Advancing_front_surface_reconstruction}
+\package_listing{Optimal_transportation_reconstruction_2}
 
 \section PartGeometryProcessing Geometry Processing
 
@@ -108,7 +109,7 @@ h1 {
 \package_listing{Subdivision_method_3}
 \package_listing{Surface_mesh_segmentation}
 \package_listing{Surface_mesh_simplification}
-\package_listing{Surface_modeling}
+\package_listing{Surface_mesh_deformation}
 \package_listing{Surface_mesh_parameterization}
 \package_listing{Surface_mesh_shortest_path}
 \package_listing{Surface_mesh_skeletonization}
@@ -152,6 +153,7 @@ h1 {
 \package_listing{BGL}
 \package_listing{Solver_interface}
 \package_listing{Property_map}
+\package_listing{Cone_spanners_2}
 \package_listing{Circulator}
 \package_listing{Generator}
 \package_listing{Miscellany}
@@ -162,6 +164,5 @@ h1 {
 \package_listing{Geomview}
 \package_listing{GraphicsView}
 \package_listing{CGAL_ipelets}
-\package_listing{Three}
 
 */

@@ -1,10 +1,10 @@
 #include <CGAL/Combinatorial_map.h>
 #include <CGAL/Cell_attribute.h>
-#include <CGAL/Combinatorial_map_constructors.h>
-#include <CGAL/Combinatorial_map_operations.h>
+#include "Combinatorial_map_test_iterators.h"
 
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 
 using namespace std;
 
@@ -145,18 +145,6 @@ typedef CGAL::Combinatorial_map<4, Map_dart_items_4> Map8;
 // int, int, int, int, double
 typedef CGAL::Combinatorial_map<4, Map_dart_max_items_4> Map9;
 
-/*
-template<typename Map>
-typename Map::Dart_handle getRandomDart(Map& map)
-{
-  int nb = rand()%map.number_of_darts();
-  typename Map::Dart_range::iterator it=map.darts().begin();
-  for ( int i=0; i<nb; ++i, ++it )
-  {}
-  return it;
-}
-*/
-
 template<typename Map, unsigned int i, typename Attr=typename Map::
          template Attribute_type<i>::type>
 struct CreateAttributes
@@ -240,7 +228,7 @@ template<typename Map>
 void create2Dmap(Map& map)
 {
   for ( int i=0; i<15; ++i )
-    CGAL::make_combinatorial_hexahedron(map);
+    map.make_combinatorial_hexahedron();
   CreateAttributes<Map,0>::run(map);
   CreateAttributes<Map,1>::run(map);
   CreateAttributes<Map,2>::run(map);
@@ -249,7 +237,7 @@ template<typename Map>
 void create3Dmap(Map& map)
 {
   for ( int i=0; i<15; ++i )
-    CGAL::make_combinatorial_hexahedron(map);
+    map.make_combinatorial_hexahedron();
 
   for ( int i=0; i<20; ++i )
   {
@@ -268,7 +256,7 @@ template<typename Map>
 void create4Dmap(Map& map)
 {
   for ( int i=0; i<45; ++i )
-    CGAL::make_combinatorial_hexahedron(map);
+    map.make_combinatorial_hexahedron();
 
   for ( int i=0; i<40; ++i )
   {
@@ -307,6 +295,14 @@ bool testCopy()
 
   Map8 map8; create4Dmap(map8);
   Map9 map9; create4Dmap(map9);
+
+  // Test iterators
+  if ( !test_iterators_2(map1) )
+  {  assert(false); return false; }
+  if ( !test_iterators_3(map4) )
+  {  assert(false); return false; }
+  if ( !test_iterators_4(map8) )
+  {  assert(false); return false; }
 
   // First copy of same types
   {

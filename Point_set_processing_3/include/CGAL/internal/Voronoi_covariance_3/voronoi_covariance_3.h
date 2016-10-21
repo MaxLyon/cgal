@@ -30,6 +30,8 @@
 #include <CGAL/Convex_hull_3/dual/halfspace_intersection_3.h>
 #endif
 
+/// \cond SKIP_IN_MANUAL
+
 namespace CGAL {
     namespace Voronoi_covariance_3 {
         namespace internal {
@@ -146,6 +148,8 @@ namespace CGAL {
                     for(typename std::list<Vertex_handle>::iterator it = vertices.begin();
                         it != vertices.end(); ++it)
                     {
+                        if (dt.is_infinite(*it))
+                          continue;
                         Vector p = ((*it)->point() - v->point())/2;
                         planes.push_back (Plane(CGAL::ORIGIN+p, p));
                     }
@@ -159,7 +163,10 @@ namespace CGAL {
                     #else
                     halfspace_intersection_3
                     #endif
-                      (planes.begin(), planes.end(), P, Point(CGAL::ORIGIN));
+                      (planes.begin(),
+                       planes.end(),
+                       P,
+                       boost::make_optional(Point(CGAL::ORIGIN)));
 
                     // apply f to the triangles on the boundary of P
                     for (typename Polyhedron::Facet_iterator it = P.facets_begin();
@@ -217,6 +224,8 @@ namespace CGAL {
 
     } // namespace Voronoi_covariance_3
 } // namespace CGAL
+
+/// \endcond
 
 #endif // CGAL_INTERNAL_VCM_VORONOI_COVARIANCE_3_HPP
 

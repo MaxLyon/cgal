@@ -175,6 +175,21 @@ public:
     return t.transform(*this);
   }
 
+  Point_3<R_>&
+  operator+=(const Vector_3 &v)
+  {
+    *this = R().construct_translated_point_3_object()(*this, v);
+    return *this;
+  }
+
+  Point_3<R_>&
+  operator-=(const Vector_3 &v)
+  {
+    *this = R().construct_translated_point_3_object()(*this,
+                  R().construct_opposite_vector_3_object()(v));
+    return *this;
+  }
+
 };
 
 template <class R>
@@ -253,6 +268,7 @@ extract(std::istream& is, Point_3<R>& p, const Cartesian_tag&)
         read(is, z);
         break;
     default:
+        is.setstate(std::ios::failbit);
         std::cerr << "" << std::endl;
         std::cerr << "Stream must be in ascii or binary mode" << std::endl;
         break;
@@ -280,6 +296,7 @@ extract(std::istream& is, Point_3<R>& p, const Homogeneous_tag&)
         read(is, hw);
         break;
     default:
+        is.setstate(std::ios::failbit);
         std::cerr << "" << std::endl;
         std::cerr << "Stream must be in ascii or binary mode" << std::endl;
         break;

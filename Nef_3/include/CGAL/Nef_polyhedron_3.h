@@ -48,20 +48,8 @@
 #include <CGAL/Modifier_base.h>
 #include <CGAL/Nef_3/Mark_bounded_volumes.h>
 
-#ifdef CGAL_NEF3_POINT_LOCATOR_NAIVE
-#include <CGAL/Nef_3/SNC_ray_shooter.h>
-#endif
-
-#ifdef CGAL_NEF3_CGAL_NEF3_SM_VISUALIZOR
-#include <CGAL/Nef_3/SNC_SM_visualizor.h>
-#endif // CGAL_NEF3_SM_VISUALIZOR
-
-#ifdef CGAL_NEF3_OLD_VISUALIZATION 
-#include <CGAL/Nef_3/Visualizor_OpenGL_3.h>
-#endif // CGAL_NEF3_OLD_VISUALIZATION 
-
 #include <CGAL/IO/Verbose_ostream.h>
-#include <CGAL/Nef_3/polyhedron_3_to_nef_3.h>
+#include <CGAL/Nef_3/polygon_mesh_to_nef_3.h>
 #include <CGAL/Nef_3/shell_to_nef_3.h>
 #include <CGAL/Polyhedron_incremental_builder_3.h>
 #include <CGAL/Polyhedron_3.h>
@@ -75,6 +63,9 @@
 #include <CGAL/Projection_traits_xz_3.h>
 #include <CGAL/Constrained_triangulation_face_base_2.h>
 #include <list>
+
+#include <boost/type_traits/is_same.hpp>
+#include <boost/utility/enable_if.hpp>
 
 // RO: includes for "vertex cycle to Nef" constructor
 #include <CGAL/Nef_3/vertex_cycle_to_nef_3.h>
@@ -115,21 +106,13 @@ class Nef_polyhedron_3_rep
   typedef CGAL::SNC_external_structure<I, SNC_structure>  SNC_external_structure;
   typedef CGAL::SNC_point_locator<SNC_decorator> SNC_point_locator;
   typedef CGAL::SNC_simplify<I, SNC_structure>            SNC_simplify;
-#ifdef CGAL_NEF3_POINT_LOCATOR_NAIVE
-  typedef CGAL::SNC_point_locator_naive<SNC_decorator> SNC_point_locator_default;
-#else
   typedef CGAL::SNC_point_locator_by_spatial_subdivision<SNC_decorator> SNC_point_locator_default;
-#endif
 
   typedef typename SNC_structure::Sphere_map       Sphere_map;
   typedef CGAL::SM_decorator<Sphere_map>           SM_decorator;
   typedef CGAL::SM_const_decorator<Sphere_map>     SM_const_decorator;
   typedef CGAL::SNC_SM_overlayer<I, SM_decorator>  SM_overlayer;
   typedef CGAL::SM_point_locator<SNC_structure>    SM_point_locator;
-
-#ifdef CGAL_NEF3_SM_VISUALIZOR
-  typedef CGAL::SNC_SM_visualizor<SNC_structure>       SM_visualizor;
-#endif // CGAL_NEF3_SM_VISUALIZOR
 
  private:
   SNC_structure snc_;
@@ -200,12 +183,25 @@ class Nef_polyhedron_3 : public CGAL::Handle_for< Nef_polyhedron_3_rep<Kernel_, 
   /*{\Menum selection flag for the point location mode.}*/
 
 protected: 
-  struct AND { Mark operator()(const Mark& b1, const Mark& b2, bool /* inverted */ =false) const { return b1&&b2; } };
-  struct OR { Mark operator()(const Mark& b1, const Mark& b2, bool /* inverted */ =false) const { return b1||b2; } };
-  struct DIFF { Mark operator()(const Mark& b1, const Mark& b2, bool inverted=false) const { 
-    if(inverted) return !b1&&b2; return b1&&!b2; } };
-  struct XOR { Mark operator()(const Mark& b1, const Mark& b2, bool /* inverted */ =false) const 
-    { return (b1&&!b2)||(!b1&&b2); } };
+  struct AND {
+    Mark operator()(const Mark& b1, const Mark& b2, bool /* inverted */ =false)const 
+    { return b1&&b2; } 
+  };
+
+  struct OR {
+    Mark operator()(const Mark& b1, const Mark& b2, bool /* inverted */ =false) const
+    { return b1||b2; } 
+  };
+
+  struct DIFF {
+    Mark operator()(const Mark& b1, const Mark& b2, bool inverted=false) const 
+    { return (inverted) ? !b1&&b2  :  b1&&!b2 ; }
+  };
+
+  struct XOR {
+    Mark operator()(const Mark& b1, const Mark& b2, bool /* inverted */ =false) const 
+    { return (b1&&!b2)||(!b1&&b2); } 
+  };
 
  public:
   typedef Nef_polyhedron_3_rep<Kernel,Items, Mark>    Nef_rep;
@@ -232,12 +228,6 @@ protected:
   typedef typename Nef_rep::SM_overlayer        SM_overlayer;
   typedef typename Nef_rep::SM_point_locator    SM_point_locator;
   typedef typename Nef_rep::SNC_simplify        SNC_simplify;
-#ifdef CGAL_NEF3_SM_VISUALIZOR
-  typedef typename Nef_rep::SM_visualizor       SM_visualizor;
-#endif // CGAL_NEF3_SM_VISUALIZOR
-#ifdef CGAL_NEF3_OLD_VISUALIZATION 
-  typedef CGAL::Nef_Visualizor_OpenGL_3<Nef_polyhedron_3> Visualizor;
-#endif // CGAL_NEF3_OLD_VISUALIZATION 
 
  typedef typename Nef_rep::Sphere_map                Sphere_map;
  public:
@@ -613,6 +603,41 @@ protected:
     initialize_infibox_vertices(EMPTY);
     polyhedron_3_to_nef_3
       <CGAL::Polyhedron_3<T1,T2,T3,T4>, SNC_structure>( P, snc());
+    build_external_structure();
+    simplify();
+    CGAL::Mark_bounded_volumes<Nef_polyhedron_3> mbv(true);
+    delegate(mbv);
+    set_snc(snc());
+  }
+
+ template <class PolygonMesh>
+ explicit Nef_polyhedron_3(const PolygonMesh& pm) {
+    CGAL_NEF_TRACEN("construction from PolygonMesh with internal index maps");
+    SNC_structure rsnc;
+    *this = Nef_polyhedron_3(rsnc, new SNC_point_locator_default, false);
+    initialize_infibox_vertices(EMPTY);
+    polygon_mesh_to_nef_3<PolygonMesh, SNC_structure>(const_cast<PolygonMesh&>(pm), snc());
+    build_external_structure();
+    simplify();
+    CGAL::Mark_bounded_volumes<Nef_polyhedron_3> mbv(true);
+    delegate(mbv);
+    set_snc(snc());
+  }
+
+ template <class PolygonMesh, class HalfedgeIndexMap, class FaceIndexMap>
+ explicit Nef_polyhedron_3(const PolygonMesh& pm,
+                           const HalfedgeIndexMap& him,
+                           const FaceIndexMap& fim,
+                           typename boost::disable_if <
+                              boost::is_same<FaceIndexMap, bool>
+                           >::type* = NULL // disambiguate with another constructor
+  )
+  {
+    CGAL_NEF_TRACEN("construction from PolygonMesh");
+    SNC_structure rsnc;
+    *this = Nef_polyhedron_3(rsnc, new SNC_point_locator_default, false);
+    initialize_infibox_vertices(EMPTY);
+    polygon_mesh_to_nef_3<PolygonMesh, SNC_structure>(const_cast<PolygonMesh&>(pm), snc(), fim, him);
     build_external_structure();
     simplify();
     CGAL::Mark_bounded_volumes<Nef_polyhedron_3> mbv(true);
@@ -1222,15 +1247,7 @@ protected:
   }
 
  public:
-#ifdef CGAL_NEF3_OLD_VISUALIZATION   
-  void visualize() { 
-    Visualizor sncv(*this);
-    sncv.draw();
-    //OGL::polyhedra_.back().debug();
-    OLDOGL::start_viewer();
-  }
-#endif // CGAL_NEF3_OLD_VISUALIZATION   
-   
+ 
   void clear(Content space = EMPTY)
     { *this = Nef_polyhedron_3(space); }
   /*{\Mop makes |\Mvar| the empty set if |space == EMPTY| and the
@@ -1285,6 +1302,7 @@ protected:
 		    SNC_point_locator* _pl = new SNC_point_locator_default,
 		    bool clone_pl = true,
 		    bool clone_snc = true);
+
   /*{\Xcreate makes |\Mvar| a new object.  If |cloneit==true| then the
   underlying structure of |W| is copied into |\Mvar|.}*/
   // TODO: granados: define behavior when clone=false
@@ -1576,7 +1594,8 @@ protected:
 
    SVertex_iterator sv;
    CGAL_forall_svertices(sv, snc()) {
-     sv->out_sedge() = sv->out_sedge()->twin();
+     if (!sv->is_isolated())
+      sv->out_sedge() = sv->out_sedge()->twin();
    }
 
    SHalfedge_iterator se;

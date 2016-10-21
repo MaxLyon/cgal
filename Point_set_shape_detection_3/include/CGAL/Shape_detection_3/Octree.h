@@ -235,6 +235,8 @@ namespace CGAL {
       Octree(Sd_traits const& traits,
              const Input_iterator &first,
              const Input_iterator &beyond,
+             Point_map& point_pmap,
+             Normal_map& normal_pmap,
              std::size_t offset = 0,
              std::size_t bucketSize = 20, 
              std::size_t maxLevel = 10)
@@ -242,7 +244,9 @@ namespace CGAL {
                m_traits(traits),
                m_root(NULL),
                m_bucket_size(bucketSize),
-               m_set_max_level(maxLevel) {}
+               m_set_max_level(maxLevel),
+               m_point_pmap (point_pmap),
+               m_normal_pmap (normal_pmap) {}
 
       ~Octree() {
         if (!m_root)
@@ -521,7 +525,7 @@ namespace CGAL {
           }
           if (enough >= requiredSamples) {
             do {
-              std::size_t p = CGAL::default_random.
+              std::size_t p = CGAL::get_default_random().
                 uniform_int<std::size_t>(0, cur->size() - 1);
               std::size_t j = this->index(cur->first + p);
               if (shapeIndex[j] == -1)

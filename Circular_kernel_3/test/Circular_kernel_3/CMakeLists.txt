@@ -2,12 +2,10 @@
 # This is the CMake script for compiling a CGAL application.
 
 
-project( Circular_kernel_3_test )
+project( Circular_kernel_3_Tests )
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4.5)
 
-set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
- 
 if ( COMMAND cmake_policy )
   cmake_policy( SET CMP0003 NEW )  
 endif()

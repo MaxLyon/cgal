@@ -2,12 +2,12 @@
 # This is the CMake script for compiling a CGAL application.
 
 
-project( Segment_Delaunay_graph_Linf_2_example )
+project( Segment_Delaunay_graph_Linf_2_Examples )
 
 cmake_minimum_required(VERSION 2.8.11)
 
 
-find_package(CGAL QUIET COMPONENTS Core )
+find_package(CGAL QUIET)
 
 if ( CGAL_FOUND )
 

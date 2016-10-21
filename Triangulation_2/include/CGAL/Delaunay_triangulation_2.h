@@ -27,11 +27,12 @@
 
 #include <CGAL/Triangulation_2.h>
 #include <CGAL/iterator.h>
+#include <CGAL/Object.h>
 
 #ifndef CGAL_TRIANGULATION_2_DONT_INSERT_RANGE_OF_POINTS_WITH_INFO
 #include <CGAL/Spatial_sort_traits_adapter_2.h>
 #include <CGAL/internal/info_check.h>
-
+#include <CGAL/tss.h>
 #include <boost/iterator/zip_iterator.hpp>
 #include <boost/mpl/and.hpp>
 
@@ -336,10 +337,10 @@ private:
   std::ptrdiff_t insert_with_info(InputIterator first,InputIterator last)
   {
     size_type n = this->number_of_vertices();
-    std::vector<std::ptrdiff_t> indices;
+    std::vector<std::size_t> indices;
     std::vector<Point> points;
     std::vector<typename Tds::Vertex::Info> infos;
-    std::ptrdiff_t index=0;
+    std::size_t index=0;
     for (InputIterator it=first;it!=last;++it){
       Tuple_or_pair value=*it;
       points.push_back( top_get_first(value)  );
@@ -347,13 +348,16 @@ private:
       indices.push_back(index++);
     }
 
-    typedef Spatial_sort_traits_adapter_2<Geom_traits,Point*> Search_traits;
+    typedef typename Pointer_property_map<Point>::type Pmap;
+    typedef Spatial_sort_traits_adapter_2<Geom_traits,Pmap> Search_traits;
     
-    spatial_sort(indices.begin(),indices.end(),Search_traits(&(points[0]),geom_traits()));
+    spatial_sort(indices.begin(),
+                 indices.end(),
+                 Search_traits(make_property_map(points),geom_traits()));
 
     Vertex_handle v_hint;
     Face_handle hint;
-    for (typename std::vector<std::ptrdiff_t>::const_iterator
+    for (typename std::vector<std::size_t>::const_iterator
       it = indices.begin(), end = indices.end();
       it != end; ++it){
       v_hint = insert(points[*it], hint);
@@ -691,7 +695,7 @@ nearest_vertex(const Point  &p, Face_handle f) const
   switch (this->dimension()) {
   case 0:
     if (this->number_of_vertices() == 0) return Vertex_handle();
-    if (this->number_of_vertices() == 1) return this->finite_vertex();
+    return this->finite_vertex();
     //break;
   case 1:
     return nearest_vertex_1D(p);
@@ -1053,27 +1057,11 @@ remove_and_give_new_faces(Vertex_handle v, OutputItFaces fit)
         afi++) *fit++ = afi;
   }
   else {
-    #ifdef CGAL_HAS_THREADS  
-    static boost::thread_specific_ptr< int > maxd_ptr;
-    static boost::thread_specific_ptr< std::vector<Face_handle> > f_ptr;
-    static boost::thread_specific_ptr< std::vector<int> > i_ptr;
-    static boost::thread_specific_ptr< std::vector<Vertex_handle> > w_ptr;
-    if (maxd_ptr.get() == NULL) {
-      maxd_ptr.reset(new int(30));
-      f_ptr.reset(new std::vector<Face_handle>(*maxd_ptr));
-      i_ptr.reset(new std::vector<int>(*maxd_ptr));
-      w_ptr.reset(new std::vector<Vertex_handle>(*maxd_ptr));
-    }
-    int& maxd=*maxd_ptr;
-    std::vector<Face_handle>& f=*f_ptr;
-    std::vector<int>& i=*i_ptr;
-    std::vector<Vertex_handle>& w=*w_ptr;
-    #else
-    static int maxd=30;
-    static std::vector<Face_handle> f(maxd);
-    static std::vector<int> i(maxd);
-    static std::vector<Vertex_handle> w(maxd);
-    #endif
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(int, maxd,30);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Face_handle> , f, maxd);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<int>, i, maxd);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Vertex_handle>, w, maxd);
+
     int d;
     remove_degree_init(v,f,w,i,d,maxd);
     remove_degree_triangulate(v,f,w,i,d);
@@ -1097,27 +1085,11 @@ remove(Vertex_handle v)
 
   if ( this->dimension() <= 1) { Triangulation::remove(v); return; }
 
-  #ifdef CGAL_HAS_THREADS  
-  static boost::thread_specific_ptr< int > maxd_ptr;
-  static boost::thread_specific_ptr< std::vector<Face_handle> > f_ptr;
-  static boost::thread_specific_ptr< std::vector<int> > i_ptr;
-  static boost::thread_specific_ptr< std::vector<Vertex_handle> > w_ptr;
-  if (maxd_ptr.get() == NULL) {
-    maxd_ptr.reset(new int(30));
-    f_ptr.reset(new std::vector<Face_handle>(*maxd_ptr));
-    i_ptr.reset(new std::vector<int>(*maxd_ptr));
-    w_ptr.reset(new std::vector<Vertex_handle>(*maxd_ptr));
-  }
-  int& maxd=*maxd_ptr;
-  std::vector<Face_handle>& f=*f_ptr;
-  std::vector<int>& i=*i_ptr;
-  std::vector<Vertex_handle>& w=*w_ptr;
-  #else
-  static int maxd=30;
-  static std::vector<Face_handle> f(maxd);
-  static std::vector<int> i(maxd);
-  static std::vector<Vertex_handle> w(maxd);
-  #endif
+  CGAL_STATIC_THREAD_LOCAL_VARIABLE(int, maxd,30);
+  CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Face_handle> , f, maxd);
+  CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<int>, i, maxd);
+  CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Vertex_handle>, w, maxd);
+
   remove_degree_init(v,f,w,i,d,maxd);
   if (d == 0) return; //  dim is going down
   remove_degree_triangulate(v,f,w,i,d);
@@ -2260,27 +2232,11 @@ move_if_no_collision(Vertex_handle v, const Point &p) {
 
   {
     int d;
-    #ifdef CGAL_HAS_THREADS  
-    static boost::thread_specific_ptr< int > maxd_ptr;
-    static boost::thread_specific_ptr< std::vector<Face_handle> > f_ptr;
-    static boost::thread_specific_ptr< std::vector<int> > i_ptr;
-    static boost::thread_specific_ptr< std::vector<Vertex_handle> > w_ptr;
-    if (maxd_ptr.get() == NULL) {
-      maxd_ptr.reset(new int(30));
-      f_ptr.reset(new std::vector<Face_handle>(*maxd_ptr));
-      i_ptr.reset(new std::vector<int>(*maxd_ptr));
-      w_ptr.reset(new std::vector<Vertex_handle>(*maxd_ptr));
-    }
-    int& maxd=*maxd_ptr;
-    std::vector<Face_handle>& f=*f_ptr;
-    std::vector<int>& i=*i_ptr;
-    std::vector<Vertex_handle>& w=*w_ptr;
-    #else
-    static int maxd=30;
-    static std::vector<Face_handle> f(maxd);
-    static std::vector<int> i(maxd);
-    static std::vector<Vertex_handle> w(maxd);
-    #endif
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(int, maxd,30);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Face_handle> , f, maxd);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<int>, i, maxd);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Vertex_handle>, w, maxd);
+
     remove_degree_init(v,f,w,i,d,maxd);
     remove_degree_triangulate(v,f,w,i,d);
   }
@@ -2494,27 +2450,11 @@ move_if_no_collision_and_give_new_faces(Vertex_handle v,
 
 
   {
-    #ifdef CGAL_HAS_THREADS  
-    static boost::thread_specific_ptr< int > maxd_ptr;
-    static boost::thread_specific_ptr< std::vector<Face_handle> > f_ptr;
-    static boost::thread_specific_ptr< std::vector<int> > i_ptr;
-    static boost::thread_specific_ptr< std::vector<Vertex_handle> > w_ptr;
-    if (maxd_ptr.get() == NULL) {
-      maxd_ptr.reset(new int(30));
-      f_ptr.reset(new std::vector<Face_handle>(*maxd_ptr));
-      i_ptr.reset(new std::vector<int>(*maxd_ptr));
-      w_ptr.reset(new std::vector<Vertex_handle>(*maxd_ptr));
-    }
-    int& maxd=*maxd_ptr;
-    std::vector<Face_handle>& f=*f_ptr;
-    std::vector<int>& i=*i_ptr;
-    std::vector<Vertex_handle>& w=*w_ptr;
-    #else
-    static int maxd=30;
-    static std::vector<Face_handle> f(maxd);
-    static std::vector<int> i(maxd);
-    static std::vector<Vertex_handle> w(maxd);
-    #endif
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(int, maxd,30);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Face_handle> , f, maxd);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<int>, i, maxd);
+    CGAL_STATIC_THREAD_LOCAL_VARIABLE(std::vector<Vertex_handle>, w, maxd);
+
     int d;
     remove_degree_init(v,f,w,i,d,maxd);
     remove_degree_triangulate(v,f,w,i,d);

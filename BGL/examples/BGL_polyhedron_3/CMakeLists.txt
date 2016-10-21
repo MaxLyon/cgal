@@ -1,7 +1,7 @@
 # Created by the script cgal_create_CMakeLists
 # This is the CMake script for compiling a set of CGAL applications.
 
-project( BGL_polyhedron_3 )
+project( BGL_polyhedron_3_Examples )
 
 
 cmake_minimum_required(VERSION 2.8.11)
@@ -34,7 +34,8 @@ endif()
 find_package( OpenMesh QUIET )
 
 if ( OpenMesh_FOUND )
-include( UseOpenMesh )
+  include( UseOpenMesh )
+  add_definitions( -DCGAL_USE_OPENMESH )
 else()
   message(STATUS "Examples that use OpenMesh will not be compiled.")
 endif()
@@ -64,10 +65,9 @@ create_single_source_cgal_program( "range.cpp" )
 
 create_single_source_cgal_program( "transform_iterator.cpp" )
 
-
+create_single_source_cgal_program( "copy_polyhedron.cpp" )
 
 if(OpenMesh_FOUND)
-  create_single_source_cgal_program( "polyhedron_2_OpenMesh.cpp" )
-  target_link_libraries( polyhedron_2_OpenMesh ${OPENMESH_LIBRARIES} )
+  target_link_libraries( copy_polyhedron ${OPENMESH_LIBRARIES} )
 endif()
 

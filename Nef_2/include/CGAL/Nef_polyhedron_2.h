@@ -37,7 +37,6 @@
 #include <CGAL/Nef_2/PM_decorator.h>
 #include <CGAL/Nef_2/PM_io_parser.h>
 #include <CGAL/Nef_2/PM_overlayer.h>
-//#include <CGAL/Nef_2/PM_transformer.h>
 #include <CGAL/Nef_2/PM_point_locator.h>
 #include <CGAL/Nef_2/Bounding_box_2.h>
 #include <vector>
@@ -282,9 +281,17 @@ protected:
       D(d), _e(), _v(), _it(it), _m(m) {}
 
     void supporting_segment(Halfedge_handle e, ES_iterator it) 
-    { if ( it == _it ) _e = e; D.mark(e) = _m; }
+    {
+      if ( it == _it )
+        _e = e;
+      D.mark(e) = _m; 
+    }
     void trivial_segment(Vertex_handle v, ES_iterator it) 
-    { if ( it == _it ) _v = v; D.mark(v) = _m; }
+    {
+      if ( it == _it )
+        _v = v;
+      D.mark(v) = _m;
+    }
     void starting_segment(Vertex_handle v, ES_iterator) 
     { D.mark(v) = _m; }
     void passing_segment(Vertex_handle v, ES_iterator) 
