@@ -19,6 +19,9 @@
 //
 // Author(s)     : Aymeric PELLE <aymeric.pelle@sophia.inria.fr>
 
+
+//#define REALLY_VERBOSE
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 
@@ -27,6 +30,7 @@
 
 #include <CGAL/Random.h>
 #include <CGAL/point_generators_3.h>
+#include <CGAL/Timer.h>
 
 #include <algorithm>
 #include <cassert>
@@ -48,6 +52,7 @@ typedef CGAL::Periodic_3_regular_triangulation_traits_3<CGAL::Epick> Traits_Epic
  */
 template class CGAL::Periodic_3_regular_triangulation_3<Traits_Epick>;
 
+typedef CGAL::Timer Timer;
 
 template <class Kernel>
 class Tests
@@ -100,6 +105,7 @@ public:
 
   static void test_insert_1 ()
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_1" << std::endl;
 
     P3RT3 p3rt3;
@@ -115,10 +121,12 @@ public:
     for (Cell_iterator iter = p3rt3.cells_begin(), end_iter = p3rt3.cells_end(); iter != end_iter; ++iter)
       hidden_point_count += std::distance(iter->hidden_points_begin(), iter->hidden_points_end());
     assert(hidden_point_count == 0);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_point ()
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_point" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -147,10 +155,12 @@ public:
     for (Cell_iterator iter = p3rt3.cells_begin(), end_iter = p3rt3.cells_end(); iter != end_iter; ++iter)
       hidden_point_count += std::distance(iter->hidden_points_begin(), iter->hidden_points_end());
     assert(hidden_point_count == 0);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_hidden_point ()
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_hidden_point" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -189,10 +199,12 @@ public:
     }
     assert(hidden_point_count == 1);
     assert(hidden_found_count == 1);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_hiding_point ()
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_hiding_point" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -231,10 +243,12 @@ public:
     }
     assert(hidden_point_count == 1);
     assert(hidden_found_count == 1);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_a_point_twice ()
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_a_point_twice" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -255,10 +269,12 @@ public:
     for (Cell_iterator iter = p3rt3.cells_begin(), end_iter = p3rt3.cells_end(); iter != end_iter; ++iter)
       hidden_point_count += std::distance(iter->hidden_points_begin(), iter->hidden_points_end());
     assert(hidden_point_count == 0);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_two_points_with_the_same_position ()
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_two_points_with_the_same_position" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -286,10 +302,12 @@ public:
     }
     assert(hidden_point_count == 1);
     assert(hidden_found_count == 1);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_remove ()
   {
+    Timer t; t.start();
     std::cout << "--- test_remove" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -328,10 +346,12 @@ public:
     for (Vertex_iterator iter = p3rt3.vertices_begin(), end_iter = p3rt3.vertices_end(); iter != end_iter; ++iter)
       point_found_count += (iter->point() == hidden_point);
     assert(point_found_count == 27);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_rnd_as_delaunay (unsigned pt_count, double weight)
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_rnd_as_delaunay (" << pt_count << ',' << weight << ')' << std::endl;
 
     CGAL::Random random(7);
@@ -360,10 +380,12 @@ public:
     for (Cell_iterator iter = p3rt3.cells_begin(), end_iter = p3rt3.cells_end(); iter != end_iter; ++iter)
       hidden_point_count += std::distance(iter->hidden_points_begin(), iter->hidden_points_end());
     assert(hidden_point_count == 0);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_from_file (const char* filename)
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_from_file" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5));
@@ -384,10 +406,12 @@ public:
     }
 
     assert(p3rt3.is_valid());
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_rt3_pointset ()
   {
+    Timer t; t.start();
     P3RT3 p3rt3(Iso_cuboid(Point_3(-100,-100,-100), Point_3(100,100,100)));
 
     for (int a=0;a!=10;a++)
@@ -399,10 +423,12 @@ public:
           p3rt3.insert(p);
         }
     assert(p3rt3.is_valid());
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_27_to_1_sheeted_covering ()
   {
+    Timer t; t.start();
     std::cout << "--- test_27_to_1_sheeted_covering" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0, 0, 0, 1, 1, 1));
@@ -419,7 +445,9 @@ public:
           if (k % 2)
             y += FT(1) / FT(12);
           FT z = FT(k) / FT(8);
+#ifdef REALLY_VERBOSE
           std::cout << count++ << " - " << i << " " << j << " " << k << std::endl;
+#endif
           Weighted_point_3 point(Point_3(x, y, z), 0);
           p3rt3.insert(point);
           if (CGAL::make_array(i,j,k) != CGAL::make_array<unsigned>(5,5,7))
@@ -437,10 +465,12 @@ public:
       hidden_point_count += std::distance(iter->hidden_points_begin(), iter->hidden_points_end());
 
     assert(hidden_point_count == 0);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_dummy_points ()
   {
+    Timer t; t.start();
     std::cout << "--- test_dummy_points" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0, 0, 0, 1, 1, 1));
@@ -460,7 +490,9 @@ public:
           if (k % 2)
             y += FT(1) / FT(12);
           FT z = FT(k) / FT(8);
+#ifdef REALLY_VERBOSE
           std::cout << count++ << " - " << i << " " << j << " " << k << std::endl;
+#endif
           Weighted_point_3 point(Point_3(x, y, z), 0);
           vertices.push_back(p3rt3.insert(point));
           if (CGAL::make_array(i,j,k) != CGAL::make_array<unsigned>(5,5,7))
@@ -481,10 +513,12 @@ public:
     assert(p3rt3_b.is_valid());
 
     assert(p3rt3 == p3rt3_b);
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_insert_range (unsigned pt_count, unsigned /* seed */)
   {
+    Timer t; t.start();
     std::cout << "--- test_insert_range" << std::endl;
 
     // the expect values for number of vertices / hidden points are hardcoded,
@@ -531,10 +565,13 @@ public:
 
     assert(p3rt3.is_valid());
     assert(p3rt3.number_of_sheets() == CGAL::make_array(1,1,1));
+
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_construction_and_insert_range (unsigned pt_count, unsigned /* seed */)
   {
+    Timer t; t.start();
     std::cout << "--- test_construction_and_insert_range" << std::endl;
 
     // the expect values for number of vertices / hidden points are hardcoded,
@@ -579,10 +616,12 @@ public:
 
     assert(p3rt3.is_valid());
     assert(p3rt3.number_of_sheets() == CGAL::make_array(1,1,1));
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_locate_geometry ()
   {
+    Timer t; t.start();
     std::cout << "--- test_locate_geometry" << std::endl;
 
     unsigned pt_count = 600;
@@ -636,10 +675,12 @@ public:
     assert(lt == P3RT3::FACET);
     Triangle triangle = p3rt3.construct_triangle(p3rt3.periodic_triangle(ch, lo, li));
     assert(p3rt3.coplanar(triangle[0], triangle[1], triangle[2], point));
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_number_of_hidden_points ()
   {
+    Timer t; t.start();
     std::cout << "--- test_number_of_hidden_points" << std::endl;
 
     P3RT3 p3rt3(Iso_cuboid(0,0,0, 1,1,1));
@@ -686,10 +727,13 @@ public:
       hidden_point_count += std::distance(iter->hidden_points_begin(), iter->hidden_points_end());
     assert(hidden_point_count == 3);
     assert(p3rt3.number_of_hidden_points() == 3);
+
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test_find_conflicts ()
   {
+    Timer t; t.start();
     std::cout << "--- test_find_conflicts" << std::endl;
 
     CGAL::Random random(7);
@@ -738,10 +782,12 @@ public:
           (p3rt3.side_of_power_sphere(int_facets[i].first->neighbor(int_facets[i].second), p)
               == CGAL::ON_BOUNDED_SIDE));
     }
+    std::cerr << t.time() << " sec."<< std::endl;
   }
 
   static void test ()
   {
+    Timer t;  t.start();
     test_find_conflicts();
     test_insert_range(800, 7);
     test_construction_and_insert_range(800, 7);
@@ -760,11 +806,14 @@ public:
     //////    Iso_cuboid unitaire ->  0 <= weight < 0.015625
     test_insert_rnd_as_delaunay(100, 0.);
     test_insert_rnd_as_delaunay(100, 0.01);
+    std::cout << "Total time: " << t.time() << " sec."<< std::endl;
   }
 };
 
 int main (int, char**)
 {
+
+
   std::cout << "TESTING ..." << std::endl;
 
   CGAL::Set_ieee_double_precision pfr;
