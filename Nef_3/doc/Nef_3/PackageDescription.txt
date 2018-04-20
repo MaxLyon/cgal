@@ -19,7 +19,7 @@
 \cgalPkgDependsOn{\ref PkgNef2Summary\, \ref PkgNefS2Summary}
 \cgalPkgBib{cgal:hk-bonp3}
 \cgalPkgLicense{\ref licensesGPL  "GPL"}
-\cgalPkgDemo{Operations on Polyhedra,polyhedron_3.zip}
+\cgalPkgDemo{Polyhedron demo,polyhedron_3.zip}
 \cgalPkgShortInfoEnd
 \cgalPkgDescriptionEnd
 
@@ -59,6 +59,7 @@ a simple OpenGL visualization for debugging and illustrations.
 
 ## Functions ##
 - `CGAL::OFF_to_nef_3()`
+- `CGAL::convert_nef_polyhedron_to_polygon_mesh()`
 - \link PkgNef3IOFunctions `CGAL::operator<<()` \endlink
 - \link PkgNef3IOFunctions `CGAL::operator>>()` \endlink
 

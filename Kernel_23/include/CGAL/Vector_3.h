@@ -18,6 +18,7 @@
 //
 // $URL$
 // $Id$
+// SPDX-License-Identifier: LGPL-3.0+
 // 
 //
 // Author(s)     : Andreas Fabri, Stefan Schirra
@@ -42,7 +43,7 @@ template <class R_>
 class Vector_3 : public R_::Kernel_base::Vector_3
 {
   typedef typename R_::RT                    RT;
-// http://doc.cgal.org/latest/Manual/devman_code_format.html#secprogramming_conventions
+// https://doc.cgal.org/latest/Manual/devman_code_format.html#secprogramming_conventions
   typedef typename R_::FT                    FT_;
   typedef typename R_::Segment_3             Segment_3;
   typedef typename R_::Ray_3                 Ray_3;
@@ -315,7 +316,7 @@ template <class R >
 std::istream&
 extract(std::istream& is, Vector_3<R>& v, const Cartesian_tag&) 
 {
-  typename R::FT x, y, z;
+  typename R::FT x(0), y(0), z(0);
   switch(get_mode(is)) {
     case IO::ASCII :
       is >> iformat(x) >> iformat(y) >> iformat(z);

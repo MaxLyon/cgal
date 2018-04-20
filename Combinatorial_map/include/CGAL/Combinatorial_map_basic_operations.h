@@ -14,6 +14,7 @@
 //
 // $URL$
 // $Id$
+// SPDX-License-Identifier: LGPL-3.0+
 //
 // Author(s)     : Guillaume Damiand <guillaume.damiand@liris.cnrs.fr>
 //
@@ -21,8 +22,9 @@
 #define CGAL_COMBINATORIAL_MAP_BASIC_OPERATIONS_H 1
 
 #include <CGAL/Combinatorial_map_iterators_base.h>
-#include <boost/type_traits/is_same.hpp>
 #include <CGAL/tags.h>
+
+#include <boost/type_traits/is_same.hpp>
 
 namespace CGAL
 {
@@ -244,7 +246,7 @@ namespace CGAL
    */
   template < class Map, unsigned int i, unsigned int d >
   typename Map::size_type unmark_cell(const Map & amap, 
-                                      typename Map::Dart_handle adart,
+                                      typename Map::Dart_const_handle adart,
                                       typename Map::size_type amark)
   { return CGAL::unmark_orbit<Map,
         typename Map::template Dart_of_cell_basic_range<i,d>::const_iterator>
@@ -252,7 +254,7 @@ namespace CGAL
 
   template < class Map, unsigned int i >
   typename Map::size_type unmark_cell(const Map & amap, 
-                                      typename Map::Dart_handle adart,
+                                      typename Map::Dart_const_handle adart,
                                       typename Map::size_type amark)
   { return CGAL::unmark_cell<Map,i,Map::dimension>(amap, adart, amark); }
      
@@ -264,7 +266,7 @@ namespace CGAL
    */
   template < class Map, unsigned int i >
   typename Map::size_type degree( const Map & amap, 
-                                  typename Map::Dart_handle adart )
+                                  typename Map::Dart_const_handle adart )
   {
     CGAL_assertion(adart != NULL);
   
@@ -313,7 +315,7 @@ namespace CGAL
    */
   template < class Map, unsigned int i >
   typename Map::size_type codegree(const Map & amap, 
-                                   typename Map::Dart_handle adart)
+                                   typename Map::Dart_const_handle adart)
   {
     CGAL_assertion(adart != NULL);
   
