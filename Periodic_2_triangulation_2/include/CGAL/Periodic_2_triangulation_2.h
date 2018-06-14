@@ -503,20 +503,6 @@ public:
   }
   //\}
 
-  Point move_in_domain(const Point &p)
-  {
-    typename Gt::FT x = p.x();
-    typename Gt::FT y = p.y();
-
-    while (x < _domain.xmin()) x += _domain.xmax() - _domain.xmin();
-    while (x >= _domain.xmax()) x -= _domain.xmax() - _domain.xmin();
-
-    while (y < _domain.ymin()) y += _domain.ymax() - _domain.ymin();
-    while (y >= _domain.ymax()) y -= _domain.ymax() - _domain.ymin();
-
-    return Point(x, y);
-  }
-
   /// \name Queries on simplices
   // \{
   bool is_edge(Vertex_handle va, Vertex_handle vb) const
