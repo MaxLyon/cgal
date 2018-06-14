@@ -85,7 +85,7 @@ public:
 
   // Access
   virtual void set_domain(const Iso_rectangle_2& domain) { _domain = domain; }
-  Iso_rectangle_2 get_domain() const { return _domain; }
+  const Iso_rectangle_2& get_domain() const { return _domain; }
 
   // Operations
   Construct_point_2 construct_point_2_object() const {
