@@ -311,9 +311,9 @@ public:
     return _tds;
   }
   /// Returns the domain of the 1-sheeted cover.
-  const Iso_rectangle & domain() const
+  const Iso_rectangle& domain() const
   {
-    return _domain;
+    return _gt.get_domain();
   }
   /// Returns the number of copies of the 1-sheeted cover stored in each of
   /// the principal directions.
@@ -798,10 +798,9 @@ public:
   void set_domain(const Iso_rectangle &domain)
   {
     clear();
-    _domain = domain;
-    _gt.set_domain(_domain);
+    _gt.set_domain(domain);
     _edge_length_threshold =
-      FT(0.166) * (_domain.xmax() - _domain.xmin()) * (_domain.xmax() - _domain.xmin());
+      FT(0.166) * (domain.xmax() - domain.xmin()) * (domain.xmax() - domain.xmin());
   }
   //\}
 
@@ -1368,9 +1367,6 @@ private:
   /// Determines if we currently compute in 3-cover or 1-cover.
   Covering_sheets _cover;
 
-  /// The domain
-  Iso_rectangle _domain;
-
 protected:
   // @fixme this covering stuff should really be at the Delaunay level (will need
   // to be if P2RT2 is ever introduced...)
@@ -1395,16 +1391,19 @@ private:
 
 // CONSTRUCTORS
 template<class Gt, class Tds>
-Periodic_2_triangulation_2<Gt, Tds>::Periodic_2_triangulation_2(
-  const Iso_rectangle & domain, const Geom_traits& geom_traits)
-  : _gt(geom_traits), _tds()
-  , _cover(make_array(1, 1))
-  , _domain(domain)
-  , _too_long_edge_counter(0)
+Periodic_2_triangulation_2<Gt, Tds>::
+Periodic_2_triangulation_2(const Iso_rectangle& domain,
+                           const Geom_traits& geom_traits)
+  :
+    _gt(geom_traits),
+    _tds(),
+    _cover(make_array(1, 1)),
+    _too_long_edge_counter(0)
 {
-  CGAL_triangulation_precondition(_domain.xmax() - _domain.xmin() ==
-                                  _domain.ymax() - _domain.ymin());
-  set_domain(_domain);
+  set_domain(domain);
+
+  CGAL_triangulation_precondition(domain.xmax() - domain.xmin() ==
+                                  domain.ymax() - domain.ymin());
 }
 
 // copy constructor duplicates vertices and faces
@@ -1538,13 +1537,12 @@ copy_multiple_covering(const Periodic_2_triangulation_2<GT, Tds> & tr)
 }
 
 template<class Gt, class Tds>
-void Periodic_2_triangulation_2<Gt, Tds>::copy_triangulation(
-  const Periodic_2_triangulation_2 &tr)
+void Periodic_2_triangulation_2<Gt, Tds>::
+copy_triangulation(const Periodic_2_triangulation_2 &tr)
 {
   _tds.clear();
-  _gt = tr._gt;
+  _gt = tr.geom_traits();
   _cover = tr._cover;
-  _domain = tr._domain;
   _edge_length_threshold = tr._edge_length_threshold;
   _too_long_edge_counter = tr._too_long_edge_counter;
   if (tr.is_1_cover())
@@ -1569,7 +1567,6 @@ void Periodic_2_triangulation_2<Gt, Tds>::swap(Periodic_2_triangulation_2 &tr)
   tr._gt = t;
 
   std::swap(tr._cover, _cover);
-  std::swap(tr._domain, _domain);
 
   std::swap(tr._edge_length_threshold, _edge_length_threshold);
   std::swap(tr._too_long_edges, _too_long_edges);
@@ -2324,10 +2321,10 @@ template<class Gt, class Tds>
 typename Periodic_2_triangulation_2<Gt, Tds>::Vertex_handle
 Periodic_2_triangulation_2<Gt, Tds>::insert(const Point &p, Face_handle start)
 {
-  CGAL_triangulation_assertion((_domain.xmin() <= p.x()) &&
-                               (p.x() < _domain.xmax()));
-  CGAL_triangulation_assertion((_domain.ymin() <= p.y()) &&
-                               (p.y() < _domain.ymax()));
+  CGAL_triangulation_assertion((domain().xmin() <= p.x()) &&
+                               (p.x() < domain().xmax()));
+  CGAL_triangulation_assertion((domain().ymin() <= p.y()) &&
+                               (p.y() < domain().ymax()));
 
   if (number_of_stored_vertices() == 0)
     {
@@ -2762,10 +2759,10 @@ march_locate_2D(Face_handle f, const Point& query,
     {
       int cumm_off = f->offset(0) | f->offset(1) | f->offset(2);
       if (((cumm_off & 2) == 2) &&
-          (FT(2) * query.x() < (_domain.xmax() + _domain.xmin())))
+          (FT(2) * query.x() < (domain().xmax() + domain().xmin())))
         off_query += Offset(1, 0);
       if (((cumm_off & 1) == 1) &&
-          (FT(2) * query.y() < (_domain.ymax() + _domain.ymin())))
+          (FT(2) * query.y() < (domain().ymax() + domain().ymin())))
         off_query += Offset(0, 1);
     }
 
@@ -2953,10 +2950,10 @@ typename Periodic_2_triangulation_2<Gt, Tds>::Face_handle Periodic_2_triangulati
 Gt, Tds >::locate(const Point& p, const Offset &o, Locate_type& lt, int& li,
                   Face_handle start) const
 {
-  CGAL_triangulation_assertion((_domain.xmin() <= p.x()) &&
-                               (p.x() < _domain.xmax()));
-  CGAL_triangulation_assertion((_domain.ymin() <= p.y()) &&
-                               (p.y() < _domain.ymax()));
+  CGAL_triangulation_assertion((domain().xmin() <= p.x()) &&
+                               (p.x() < domain().xmax()));
+  CGAL_triangulation_assertion((domain().ymin() <= p.y()) &&
+                               (p.y() < domain().ymax()));
 
   if (dimension() <= 0)
     {
@@ -3145,10 +3142,10 @@ void Periodic_2_triangulation_2<Gt, Tds>::convert_to_1_sheeted_covering()
             off[i] = Offset();
             get_vertex(it, i, vert[i], off[i]);
             it->set_vertex(i, vert[i]);
-            CGAL_triangulation_assertion(vert[i]->point()[0] < _domain.xmax());
-            CGAL_triangulation_assertion(vert[i]->point()[1] < _domain.ymax());
-            CGAL_triangulation_assertion(vert[i]->point()[0] >= _domain.xmin());
-            CGAL_triangulation_assertion(vert[i]->point()[1] >= _domain.ymin());
+            CGAL_triangulation_assertion(vert[i]->point()[0] < domain().xmax());
+            CGAL_triangulation_assertion(vert[i]->point()[1] < domain().ymax());
+            CGAL_triangulation_assertion(vert[i]->point()[0] >= domain().xmin());
+            CGAL_triangulation_assertion(vert[i]->point()[1] >= domain().ymin());
 
             // redirect also the face pointer of the vertex.
             it->vertex(i)->set_face(it);
@@ -3548,10 +3545,10 @@ inline void Periodic_2_triangulation_2<GT, Tds>::get_vertex(Vertex_handle vh_i,
       // otherwise it has to be looked up as well as its offset.
       vh = it->second.first;
       off += it->second.second;
-      CGAL_triangulation_assertion(vh->point().x() < _domain.xmax());
-      CGAL_triangulation_assertion(vh->point().y() < _domain.ymax());
-      CGAL_triangulation_assertion(vh->point().x() >= _domain.xmin());
-      CGAL_triangulation_assertion(vh->point().y() >= _domain.ymin());
+      CGAL_triangulation_assertion(vh->point().x() < domain().xmax());
+      CGAL_triangulation_assertion(vh->point().y() < domain().ymax());
+      CGAL_triangulation_assertion(vh->point().x() >= domain().xmin());
+      CGAL_triangulation_assertion(vh->point().y() >= domain().ymin());
     }
 }
 
@@ -4318,7 +4315,6 @@ Periodic_2_triangulation_2<Gt, Tds>::load(std::istream& is)
   CGAL_triangulation_assertion((n / (cx * cy))*cx*cy == n);
 
   tds().set_dimension((n == 0 ? -2 : 2));
-  _domain = domain;
   _gt.set_domain(domain);
   _cover = make_array(cx, cy);
 
@@ -4436,8 +4432,8 @@ Periodic_2_triangulation_2<Gt, Tds>::load(std::istream& is)
       ++i;
     }
 
-  _edge_length_threshold = FT(0.166) * (_domain.xmax() - _domain.xmin())
-                           * (_domain.xmax() - _domain.xmin());
+  _edge_length_threshold = FT(0.166) * (domain.xmax() - domain.xmin())
+                           * (domain.xmax() - domain.xmin());
   _too_long_edge_counter = find_too_long_edges(_too_long_edges);
 
   CGAL_triangulation_expensive_assertion( is_valid() );

@@ -42,10 +42,10 @@ Periodic_2_triangulation_2<GT, Tds>::insert_dummy_points()
           Point p(j * (1.0 / 3.0) + i * (1.0 / 6.0), i * (1.0 / 4.0) );
           p = Point((p.x() > FT(0.9375) ? (std::max)( p.x() - 1, FT(0) ) : p.x()),
                     p.y());
-          p = Point((_domain.xmax() - _domain.xmin()) * p.x(),
-                    (_domain.xmax() - _domain.xmin()) * p.y());
-          p = Point(p.x() + _domain.xmin(),
-                    p.y() + _domain.ymin());
+          p = Point((domain().xmax() - domain().xmin()) * p.x(),
+                    (domain().xmax() - domain().xmin()) * p.y());
+          p = Point(p.x() + domain().xmin(),
+                    p.y() + domain().ymin());
           vertices[3 * i + j]->set_point(p);
         }
     }
