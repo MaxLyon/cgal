@@ -26,6 +26,7 @@
 #include <CGAL/Periodic_2_triangulation_2.h>
 #include <CGAL/iterator.h>
 #include <CGAL/algorithm.h>
+#include <CGAL/unordered.h>
 
 #ifndef CGAL_TRIANGULATION_2_DONT_INSERT_RANGE_OF_POINTS_WITH_INFO
 #include <CGAL/Spatial_sort_traits_adapter_2.h>
@@ -71,20 +72,14 @@ public:
 
   typedef typename Base::size_type              size_type;
   typedef typename Base::Locate_type            Locate_type;
-  typedef typename Base::Face_handle            Face_handle;
+
   typedef typename Base::Vertex_handle          Vertex_handle;
+  typedef typename Base::Vertex_iterator        Vertex_iterator;
   typedef typename Base::Edge                   Edge;
   typedef typename Base::Edge_circulator        Edge_circulator;
-  typedef typename Base::Face_circulator        Face_circulator;
-  typedef typename Base::Vertex_circulator      Vertex_circulator;
-  typedef typename Base::Finite_edges_iterator  Finite_edges_iterator;
-  typedef typename Base::Finite_faces_iterator  Finite_faces_iterator;
-  typedef typename Base::Finite_vertices_iterator Finite_vertices_iterator;
-  typedef typename Base::All_faces_iterator     All_faces_iterator;
-
   typedef typename Base::Edge_iterator          Edge_iterator;
+  typedef typename Base::Face_handle            Face_handle;
   typedef typename Base::Face_iterator          Face_iterator;
-  typedef typename Base::Vertex_iterator        Vertex_iterator;
 
   typedef typename Base::Periodic_segment_iterator  Periodic_segment_iterator;
   typedef typename Base::Periodic_triangle_iterator Periodic_triangle_iterator;
@@ -101,9 +96,9 @@ public:
   using Base::cw;
   using Base::ccw;
   using Base::create_face;
-  using Base::insert_too_long_edge;
   using Base::locate;
   using Base::remove_degree_init;
+  using Base::construct_point;
 
   using Base::combine_offsets;
   using Base::get_offset;
@@ -117,11 +112,13 @@ public:
   using Base::domain;
   using Base::geom_traits;
   using Base::tds;
-  using Base::is_infinite;
   using Base::number_of_vertices;
+  using Base::vertices_begin;
+  using Base::vertices_end;
+  using Base::edges_begin;
+  using Base::edges_end;
   using Base::faces_begin;
-  using Base::finite_edges_begin;
-  using Base::finite_edges_end;
+  using Base::faces_end;
   using Base::incident_faces;
 
   using Base::orientation;
@@ -129,12 +126,52 @@ public:
   using Base::construct_segment;
 #endif
 
+private:
+  struct Face_handle_hash
+    : public CGAL::cpp98::unary_function<Face_handle, std::size_t>
+  {
+    std::size_t operator()(const Face_handle& fh) const {
+      return boost::hash<typename Face_handle::pointer>()(&*fh);
+    }
+  };
+
+  typedef cpp11::unordered_set<Face_handle, Face_handle_hash>     Too_big_circumdisks_set;
+  typedef typename Too_big_circumdisks_set::const_iterator        Too_big_circumdisks_set_it;
+
+  /// This threshold should be chosen such that if all Delaunay balls have a squared radius smaller than this,
+  /// we can be sure that there are no self-edges anymore.
+  FT squared_circumradius_threshold;
+
+  /// This container stores all the faces whose circumdisk squared radius is larger
+  /// than the treshold `orthosphere_radius_threshold`.
+  Too_big_circumdisks_set faces_with_too_big_circumdisk;
+
+public:
   /// \name Constructors
-  // \{
+
   /// Constructor
   Periodic_2_Delaunay_triangulation_2(const Iso_rectangle & domain = Iso_rectangle(0, 0, 1, 1),
                                       const Gt& gt = Gt())
-    : Base(domain, gt) {}
+    : Base(domain, gt)
+  {
+    // the criterion is that the largest circumdisk must have a diameter smaller than c/2
+    // (c being the square side), thus we need a squared circumdisk radius smaller than c*c/16
+    squared_circumradius_threshold =
+      (domain.xmax() - domain.xmin()) * (domain.xmax() - domain.xmin()) / FT(16);
+  }
+
+  /// Constructor with insertion of points
+  template < class InputIterator >
+  Periodic_2_Delaunay_triangulation_2(InputIterator first, InputIterator last,
+                                      const Iso_rectangle & domain = Iso_rectangle(0, 0, 1, 1),
+                                      const Gt& gt = Gt())
+    : Base(domain, gt)
+  {
+    squared_circumradius_threshold =
+      (domain.xmax() - domain.xmin()) * (domain.xmax() - domain.xmin()) / FT(16);
+
+    insert(first, last);
+  }
 
   /// Copy constructor
   Periodic_2_Delaunay_triangulation_2(const Periodic_2_Delaunay_triangulation_2<Gt, Tds> &tr)
@@ -143,39 +180,166 @@ public:
     CGAL_triangulation_postcondition( is_valid(true) );
   }
 
-  /// Constructor with insertion of points
-  template < class InputIterator >
-  Periodic_2_Delaunay_triangulation_2(InputIterator first, InputIterator last,
-                                      const Iso_rectangle & domain = Iso_rectangle(0, 0, 1, 1),
-                                      const Gt& gt = Gt())
-    : Periodic_2_triangulation_2<Gt, Tds>(domain, gt)
+  void copy_multiple_covering(const Periodic_2_Delaunay_triangulation_2& tr);
+
+  void swap(Periodic_2_Delaunay_triangulation_2& tr)
   {
-    insert(first, last);
+    Base::swap(tr);
+
+    std::swap(squared_circumradius_threshold, tr.squared_circumradius_threshold);
+    std::swap(faces_with_too_big_circumdisk, tr.faces_with_too_big_circumdisk);
   }
 
-  // \}
+  void clear()
+  {
+    Base::clear();
+
+    faces_with_too_big_circumdisk.clear();
+  }
+
+private:
+  class Cover_manager
+  {
+    Periodic_2_Delaunay_triangulation_2& tr;
+
+  public:
+    Cover_manager(Periodic_2_Delaunay_triangulation_2& tr) : tr(tr) {}
+
+    void create_initial_triangulation()
+    {
+      tr.create_initial_triangulation();
+    }
+
+    template <class FaceIt>
+    void insert_unsatisfying_elements(Vertex_handle v, const FaceIt begin, const FaceIt end)
+    {
+      tr.insert_faces_with_too_big_orthoball(v, begin, end);
+    }
+
+    template <class FaceIt>
+    void delete_faces_with_too_big_circumdisk(const FaceIt begin, const FaceIt end)
+    {
+      tr.delete_faces_with_too_big_circumdisk(begin, end);
+    }
+
+    bool can_be_converted_to_1_sheet() const
+    {
+      return tr.can_be_converted_to_1_sheet();
+    }
+
+    bool update_cover_data_during_management(Face_handle new_fh, const std::vector<Face_handle>& new_faces)
+    {
+      return tr.update_cover_data_during_management(new_fh, new_faces);
+    }
+  };
 
   /// \name Methods regarding the covering
-  /// \{
 
+  void create_initial_triangulation()
+  {
+    CGAL_triangulation_assertion( faces_with_too_big_circumdisk.empty() );
+
+    for(Face_iterator iter = faces_begin(), end_iter = faces_end(); iter != end_iter; ++iter)
+      faces_with_too_big_circumdisk.insert(iter);
+  }
+
+  CGAL::Comparison_result compare_squared_circumradius_to_threshold(const Periodic_point& p0, const Periodic_point& p1,
+                                                                    const Periodic_point& p2, const FT threshold) const
+  {
+    return geom_traits().compare_squared_radius_2_object()(p0.first, p1.first, p2.first,
+                                                           p0.second, p1.second, p2.second,
+                                                           threshold);
+  }
+
+  CGAL::Comparison_result compare_squared_circumradius_to_threshold(Face_handle face, const FT threshold) const
+  {
+    Periodic_point p0 = periodic_point(face, 0);
+    Periodic_point p1 = periodic_point(face, 1);
+    Periodic_point p2 = periodic_point(face, 2);
+
+    return compare_squared_circumradius_to_threshold(p0, p1, p2, threshold);
+  }
+
+  template <class FaceIt>
+  void insert_faces_with_too_big_orthoball(Vertex_handle /*v*/, FaceIt begin, const FaceIt end)
+  {
+    for(; begin != end; ++begin)
+      if(compare_squared_circumradius_to_threshold(*begin, squared_circumradius_threshold) != CGAL::SMALLER)
+        faces_with_too_big_circumdisk.insert(*begin);
+  }
+
+  void insert_faces_with_too_big_orthoball(Face_iterator begin, Face_iterator end)
+  {
+    for(; begin != end; ++begin)
+      if(compare_squared_circumradius_to_threshold(begin, squared_circumradius_threshold) != CGAL::SMALLER)
+        faces_with_too_big_circumdisk.insert(begin);
+  }
+
+  template <class FaceIt>
+  void delete_faces_with_too_big_circumdisk(FaceIt begin, const FaceIt end)
+  {
+    for(; begin != end; ++begin)
+    {
+      typename Too_big_circumdisks_set_it iter = faces_with_too_big_circumdisk.find(*begin);
+      if(iter != faces_with_too_big_circumdisk.end())
+        faces_with_too_big_circumdisk.erase(iter);
+    }
+  }
+
+  bool can_be_converted_to_1_sheet() const
+  {
+    return faces_with_too_big_circumdisk.empty();
+  }
+
+  // returns 'true/false' depending on whether the cover would (or has, if 'abort_if_cover_change'
+  // is set to 'false') change.
+  bool update_cover_data_during_management(Face_handle new_fh,
+                                           const std::vector<Face_handle>& new_faces)
+  {
+    if(compare_squared_circumradius_to_threshold(new_fh, squared_circumradius_threshold) != CGAL::SMALLER)
+    {
+      if(is_1_cover())
+      {
+        // Whether we are changing the cover or simply aborting, we need to get rid of the new cells
+        tds().delete_faces(new_faces.begin(), new_faces.end());
+        return true;
+      }
+      else
+      {
+        faces_with_too_big_circumdisk.insert(new_fh);
+      }
+    }
+
+    return false;
+  }
+
+  virtual void update_cover_data_after_setting_domain()
+  {
+    squared_circumradius_threshold =
+      (domain().xmax() - domain().xmin()) * (domain().xmax() - domain().xmin()) / FT(16);
+  }
+
+  virtual void update_cover_data_after_converting_to_9_sheeted_covering()
+  {
+    for(Face_iterator iter = faces_begin(), end_iter = faces_end(); iter != end_iter; ++iter)
+      if(compare_squared_circumradius_to_threshold(iter, squared_circumradius_threshold) != CGAL::SMALLER)
+        faces_with_too_big_circumdisk.insert(iter);
+  }
+
+  virtual void clear_covering_data()
+  {
+    faces_with_too_big_circumdisk.clear();
+  }
+
+public:
   /// Checks whether the triangulation is a valid simplicial complex in the one cover.
   /// Uses an edge-length-criterion.
   bool is_extensible_triangulation_in_1_sheet_h1() const
   {
     if(!is_1_cover())
-      return (this->_too_long_edge_counter == 0);
+      return can_be_converted_to_1_sheet();
 
-    FT longest_edge_squared_length(0);
-    Segment s;
-
-    for(Periodic_segment_iterator psit = this->periodic_segments_begin(Base::UNIQUE);
-                                  psit != this->periodic_segments_end(Base::UNIQUE); ++psit)
-    {
-      s = construct_segment(*psit);
-      longest_edge_squared_length = (std::max)(longest_edge_squared_length,
-                                               s.squared_length());
-    }
-    return (longest_edge_squared_length < this->_edge_length_threshold);
+    return is_extensible_triangulation_in_1_sheet_h2();
   }
 
   /// Checks whether the triangulation is a valid simplicial complex in the one cover.
@@ -183,29 +347,23 @@ public:
   bool is_extensible_triangulation_in_1_sheet_h2() const
   {
     for(Periodic_triangle_iterator tit = this->periodic_triangles_begin(Base::UNIQUE);
-                                   tit != this->periodic_triangles_end(Base::UNIQUE); ++tit)
+        tit != this->periodic_triangles_end(Base::UNIQUE); ++tit)
     {
-      Point cc = geom_traits().construct_circumcenter_2_object()(
-                   tit->at(0).first, tit->at(1).first, tit->at(2).first,
-                   tit->at(0).second, tit->at(1).second, tit->at(2).second);
-
-      if (!(FT(16) * squared_distance(cc, point(tit->at(0))) <
-            (domain().xmax() - domain().xmin()) * (domain().xmax() - domain().xmin())))
+      if(compare_squared_circumradius_to_threshold(tit->at(0), tit->at(1),
+                                                   tit->at(2),
+                                                   squared_circumradius_threshold) != CGAL::SMALLER)
         return false;
     }
     return true;
   }
 
-  // \}
-
   /// \name Insertion-Removal
   // \{
-  Vertex_handle insert(const Point  &p,
+  Vertex_handle insert(const Point &p,
                        Face_handle start = Face_handle() );
   Vertex_handle insert(const Point& p,
                        Locate_type lt,
                        Face_handle loc, int li );
-
 
   /// Inserts a point in the triangulation.
   Vertex_handle push_back(const Point &p);
@@ -232,7 +390,8 @@ public:
 
     // The heuristic discards the existing triangulation so it can only be
     // applied to empty triangulations.
-    if (n != 0) is_large_point_set = false;
+    if (n != 0)
+      is_large_point_set = false;
 
     std::set<Vertex_handle> dummy_points;
     std::vector<Point> points(first, last);
@@ -550,10 +709,10 @@ public:
   Segment dual(const Edge_iterator& ei) const;
 
   template < class Stream>
-  Stream& draw_dual(Stream & ps)
+  Stream& draw_dual(Stream & ps) const
   {
-    Finite_edges_iterator eit = finite_edges_begin();
-    for (; eit != finite_edges_end(); ++eit)
+    Edge_iterator eit = edges_begin();
+    for (; eit != edges_end(); ++eit)
       {
         ps << dual(eit);
       }
@@ -564,6 +723,9 @@ public:
   /// \name Checking
   // \{
   bool is_valid(bool verbose = false, int level = 0) const;
+
+  /// Checks the too_big book-keeping
+  bool is_valid_too_big_circumdisks(bool verbose = false, int level = 0) const;
 
   /// Checks whether f->vertex(i) lies outside the circumcircle of the face nb
   inline bool locally_Delaunay(const Face_handle &f, int i, const Face_handle &nb);
@@ -810,7 +972,17 @@ private:
   {
     return side_of_oriented_circle(fh, p, true) ==  ON_POSITIVE_SIDE;
   }
+
+  /// Deserialize the triangulation from an input stream
+  std::istream& load(std::istream& is);
 };
+
+template<class Gt, class Tds>
+std::istream&
+operator>>(std::istream& is, Periodic_2_Delaunay_triangulation_2<Gt, Tds> &tr)
+{
+  return tr.load(is);
+}
 
 template < class Gt, class Tds >
 bool
@@ -825,8 +997,7 @@ is_valid(bool verbose, int level) const
     {
       const Point *p[4];
       Offset off[4];
-      for (Face_iterator fit = faces_begin();
-           fit != this->faces_end(); ++fit)
+      for (Face_iterator fit = faces_begin(); fit != faces_end(); ++fit)
         {
           for (int i = 0; i < 3; i++)
             {
@@ -848,6 +1019,62 @@ is_valid(bool verbose, int level) const
             }
         }
     }
+
+  result &= is_valid_too_big_circumdisks(verbose, level);
+
+  return result;
+}
+
+template<class Gt, class Tds>
+bool Periodic_2_Delaunay_triangulation_2<Gt, Tds>::
+is_valid_too_big_circumdisks(bool /*verbose*/, int /*level*/) const
+{
+  bool result = true;
+
+  result &= (is_1_cover() == faces_with_too_big_circumdisk.empty());
+  CGAL_triangulation_assertion(result);
+
+  /// Expensive check whether the correct faces are in the set
+  if (is_1_cover())
+  {
+    for(Periodic_triangle_iterator tit = this->periodic_triangles_begin(Base::UNIQUE);
+        tit != this->periodic_triangles_end(Base::UNIQUE); ++tit)
+    {
+      if(compare_squared_circumradius_to_threshold(tit->at(0), tit->at(1),
+                                                   tit->at(2),
+                                                   squared_circumradius_threshold) != CGAL::SMALLER)
+        result = false;
+    }
+    CGAL_triangulation_assertion(result);
+  }
+  else // not 1 cover
+  {
+    std::size_t counter = 0;
+    for(Face_iterator iter = faces_begin(), end_iter = faces_end(); iter != end_iter; ++iter)
+    {
+      Too_big_circumdisks_set_it iter_it = faces_with_too_big_circumdisk.find(iter);
+
+      if(compare_squared_circumradius_to_threshold(iter, squared_circumradius_threshold) != CGAL::SMALLER)
+      {
+        ++counter;
+        // circumradius is too big, it should be in the set
+        if(iter_it == faces_with_too_big_circumdisk.end())
+          result = false;
+      }
+      else
+      {
+        // circumradius is fine, it must not be in the set
+        if(iter_it != faces_with_too_big_circumdisk.end())
+          result = false;
+      }
+    }
+    CGAL_triangulation_assertion(result);
+
+    if(faces_with_too_big_circumdisk.size() != counter)
+      result = false;
+
+    CGAL_triangulation_assertion(result);
+  }
 
   return result;
 }
@@ -978,7 +1205,7 @@ insert(const Point  &p,  Face_handle start)
 
   if (start == Face_handle())
     {
-      start = this->faces_begin();
+      start = faces_begin();
     }
 
   Locate_type lt;
@@ -1308,7 +1535,7 @@ remove_degree_triangulate(Vertex_handle v,
   // This only needs to be done when the simplicity condition is not
   // met because the simplicity condition implies is_1_cover(), hence
   // no too long edges.
-  this->remove_too_long_edges_in_star(v);
+  remove_too_long_edges_in_star(v);
 
   switch (d)
     {
@@ -1340,6 +1567,8 @@ remove_degree_d(Vertex_handle v, std::vector<Face_handle> &,
                 std::vector<Vertex_handle> &,
                 std::vector<int> &, int)
 {
+  remove_too_long_edges_in_star(v);
+
   std::list<Edge> hole;
   this->make_hole(v, hole);
 
@@ -1575,7 +1804,7 @@ remove_degree5(Vertex_handle v, std::vector<Face_handle> &f,
                std::vector<int> &i)
 {
   // removing a degree 5 vertex
-  this->remove_too_long_edges_in_star(v);
+  remove_too_long_edges_in_star(v);
 
   if (incircle(3, 0, 1, 2, f, w, i))
     {
@@ -1643,7 +1872,7 @@ remove_degree5(Vertex_handle v, std::vector<Face_handle> &f,
                std::vector<int> &i)
 {
   // removing a degree 5 vertex
-  this->remove_too_long_edges_in_star(v);
+  remove_too_long_edges_in_star(v);
 
   if (incircle(3, 0, 1, 2, f, w, o, i))
     {
@@ -2029,7 +2258,7 @@ remove_degree6(Vertex_handle v, std::vector<Face_handle> &f,
                std::vector<int> &i)
 {
   // removing a degree 6 vertex
-  this->remove_too_long_edges_in_star(v);
+  remove_too_long_edges_in_star(v);
 
   if(incircle(1, 2, 3, 0, f, w, o, i))
     {
@@ -5157,7 +5386,6 @@ move_if_no_collision(Vertex_handle v, const Point &p)
 {
   Locate_type lt;
   int li;
-  Vertex_handle inserted;
   Face_handle loc = locate(p, lt, li, v->face());
 
   if (lt == Base::VERTEX)
@@ -5584,6 +5812,23 @@ void Periodic_2_Delaunay_triangulation_2<Gt, Tds>::fill_hole_delaunay(
         }
     }
 }
+
+template<class Gt, class Tds>
+std::istream&
+Periodic_2_Delaunay_triangulation_2<Gt, Tds>::
+load(std::istream& is)
+{
+  Base::load(is);
+
+  update_cover_data_after_setting_domain();
+
+  if(!is_1_cover())
+    update_cover_data_after_converting_to_9_sheeted_covering();
+
+  CGAL_triangulation_expensive_assertion(is_valid());
+  return is;
+}
+
 } //namespace CGAL
 
 #endif // CGAL_PERIODIC_2_DELAUNAY_TRIANGULATION_2_H

@@ -62,6 +62,8 @@ public:
       Compare_distance_2;
   typedef Functor_with_offset_points_adaptor_2<Self, typename Kernel::Side_of_oriented_circle_2>
       Side_of_oriented_circle_2;
+  typedef Functor_with_offset_points_adaptor_2<Self, typename Kernel::Compare_squared_radius_2>
+      Compare_squared_radius_2;
 
   typedef Functor_with_offset_points_adaptor_2<Self, typename Kernel::Construct_circumcenter_2>
       Construct_circumcenter_2;
@@ -73,6 +75,10 @@ public:
   Side_of_oriented_circle_2 side_of_oriented_circle_2_object() const {
     return Side_of_oriented_circle_2(this->Base::side_of_oriented_circle_2_object(),
                                      this->construct_point_2_object());
+  }
+  Compare_squared_radius_2 compare_squared_radius_2_object() const {
+    return Compare_squared_radius_2(this->Base::compare_squared_radius_2_object(),
+                                    this->construct_point_2_object());
   }
 
   Construct_circumcenter_2 construct_circumcenter_2_object() const {

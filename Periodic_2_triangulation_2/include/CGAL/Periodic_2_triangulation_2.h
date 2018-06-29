@@ -229,8 +229,6 @@ protected:
   Virtual_vertex_reverse_map;
   typedef typename Virtual_vertex_reverse_map::const_iterator
   Virtual_vertex_reverse_map_it;
-  typedef std::map<Vertex_handle, std::list<Vertex_handle> > Too_long_edges_map;
-  typedef typename Too_long_edges_map::const_iterator Too_long_edges_map_it;
 
   /// \name Functors
   // \{
@@ -241,10 +239,7 @@ protected:
 
   public:
     // Perturbation_order, public interface
-    Perturbation_order(const Self *tr) :
-      t(tr)
-    {
-    }
+    Perturbation_order(const Self *tr) : t(tr) { }
 
     bool operator()(const Point *p, const Point *q) const
     {
@@ -268,14 +263,19 @@ public:
   /// \name Constructors
   //\{
   /// Constructor
-  Periodic_2_triangulation_2(
-    const Iso_rectangle &domain = Iso_rectangle(0, 0, 1, 1),
-    const Geom_traits &geom_traits = Geom_traits());
+  Periodic_2_triangulation_2(const Iso_rectangle &domain = Iso_rectangle(0, 0, 1, 1),
+                             const Geom_traits &geom_traits = Geom_traits());
 
   /// Copy constructor
   Periodic_2_triangulation_2(const Periodic_2_triangulation_2<Gt, Tds> &tr);
   /// Assignment
   Periodic_2_triangulation_2 &operator=(const Periodic_2_triangulation_2 &tr);
+
+  virtual ~Periodic_2_triangulation_2() {}
+
+  virtual void update_cover_data_after_setting_domain() {}
+  virtual void update_cover_data_after_converting_to_9_sheeted_covering() { }
+  virtual void clear_covering_data() {}
 
   /// Copy the triangulation
   void copy_triangulation(const Periodic_2_triangulation_2 &tr);
@@ -799,8 +799,7 @@ public:
   {
     clear();
     _gt.set_domain(domain);
-    _edge_length_threshold =
-      FT(0.166) * (domain.xmax() - domain.xmin()) * (domain.xmax() - domain.xmin());
+    update_cover_data_after_setting_domain();
   }
   //\}
 
@@ -1030,12 +1029,10 @@ public:
 protected:
   std::vector<Vertex_handle> insert_dummy_points();
 
-
   inline void try_to_convert_to_one_cover()
   {
-    // Fall back to 1-cover if the criterion that the longest edge is shorter
-    // than sqrt(0.166) is fulfilled.
-    if (_too_long_edge_counter == 0 && !is_1_cover())
+    // Fall back to 1-cover if possible
+    if (!is_1_cover() && is_triangulation_in_1_sheet())
       {
         CGAL_triangulation_expensive_assertion( is_valid() );
         this->convert_to_1_sheeted_covering();
@@ -1070,20 +1067,6 @@ protected:
 
   /// \name Insertion helpers
   //\{
-  /// Insert too long edges in the star of v
-  void insert_too_long_edges_in_star(Vertex_handle v);
-
-  /// Insert too long edge
-  void insert_too_long_edge(Face_handle f, int i);
-
-  /// Remove too long edges in the star of v
-  void remove_too_long_edges_in_star(Vertex_handle v);
-
-  /// Removes an edge if it is too long
-  void remove_too_long_edge(Face_handle f, int i);
-
-  /// Check whether an edge is too long
-  bool edge_is_too_long(const Point &p1, const Point &p2) const;
 
   /// Flips the edge, no periodic copies are flipped
   void flip_single_edge(Face_handle f, int i);
@@ -1204,9 +1187,6 @@ protected:
   void get_vertex(Vertex_handle vh_i, Vertex_handle &vh, Offset &off) const;
   /// Returns the face containing the three vertices defined by vh[0], vh1[1] and vh[2].
   inline Face_handle get_face(const Vertex_handle* vh) const;
-  /// Constructs a list of too long edges in the triangulation.
-  int find_too_long_edges(
-    std::map<Vertex_handle, std::list<Vertex_handle> >& edges) const;
 
   /// Returns the offset such that (p, o) lies on the bounded side of the face f.
   Offset get_location_offset(Face_handle f, const Point &p, const Offset &o) const
@@ -1305,9 +1285,6 @@ protected:
   }
   //\}
 
-  /// Checks the too_long_edges bookkeeping
-  bool is_valid_too_long_edges(bool verbose = false, int level = 0) const;
-
   /** @name Checking helpers */ //@{
   /// calls has_self_edges for every face of the triangulation
   bool has_self_edges() const
@@ -1367,20 +1344,6 @@ private:
   /// Determines if we currently compute in 3-cover or 1-cover.
   Covering_sheets _cover;
 
-protected:
-  // @fixme this covering stuff should really be at the Delaunay level (will need
-  // to be if P2RT2 is ever introduced...)
-
-  /// This threshold should be chosen such that if all edges are shorter,
-  /// we can be sure that there are no self-edges anymore.
-  FT _edge_length_threshold;
-
-  /// This adjacency list stores all edges that are longer than
-  /// edge_length_threshold.
-  Too_long_edges_map _too_long_edges;
-  /// Number of edges that are too long
-  size_t _too_long_edge_counter;
-
 private:
   /// map of offsets for periodic copies of vertices
   Virtual_vertex_map _virtual_vertices;
@@ -1397,18 +1360,17 @@ Periodic_2_triangulation_2(const Iso_rectangle& domain,
   :
     _gt(geom_traits),
     _tds(),
-    _cover(make_array(1, 1)),
-    _too_long_edge_counter(0)
+    _cover(make_array(1, 1))
 {
-  set_domain(domain);
+  CGAL_triangulation_precondition(domain.xmax() - domain.xmin() == domain.ymax() - domain.ymin());
 
-  CGAL_triangulation_precondition(domain.xmax() - domain.xmin() ==
-                                  domain.ymax() - domain.ymin());
+  _gt.set_domain(domain);
 }
 
 // copy constructor duplicates vertices and faces
 template<class Gt, class Tds>
-Periodic_2_triangulation_2<Gt, Tds>::Periodic_2_triangulation_2(const Periodic_2_triangulation_2 &tr)
+Periodic_2_triangulation_2<Gt, Tds>::
+Periodic_2_triangulation_2(const Periodic_2_triangulation_2 &tr)
 {
   copy_triangulation(tr);
 }
@@ -1494,46 +1456,6 @@ copy_multiple_covering(const Periodic_2_triangulation_2<GT, Tds> & tr)
   for (Vertex_iterator vit = tr.vertices_begin() ;
        vit != tr.vertices_end() ; ++vit)
     vit->clear_offset();
-  // Build up the too_long_edges container
-  _too_long_edge_counter = 0;
-  _too_long_edges.clear();
-  for (Vertex_iterator vit = vertices_begin() ;
-       vit != vertices_end() ; ++vit)
-    _too_long_edges[vit] = std::list<Vertex_handle>();
-  std::pair<Vertex_handle, Vertex_handle> edge_to_add;
-  Point p1, p2;
-  int i, j;
-  for (Edge_iterator eit = edges_begin() ;
-       eit != edges_end() ; ++eit)
-    {
-      if (&*(eit->first->vertex(cw(eit->second)))
-          < &*(eit->first->vertex(ccw(eit->second))))
-        {
-          i = cw(eit->second);
-          j = ccw(eit->second);
-        }
-      else
-        {
-          i = ccw(eit->second);
-          j = cw(eit->second);
-        }
-      edge_to_add = std::make_pair(eit->first->vertex(i),
-                                   eit->first->vertex(j));
-      p1 = construct_point(eit->first->vertex(i)->point(),
-                           get_offset(eit->first, i));
-      p2 = construct_point(eit->first->vertex(j)->point(),
-                           get_offset(eit->first, j));
-      Vertex_handle v_no = eit->first->vertex(i);
-      if (squared_distance(p1, p2) > _edge_length_threshold)
-        {
-          CGAL_triangulation_assertion(
-            find(_too_long_edges[v_no].begin(),
-                 _too_long_edges[v_no].end(),
-                 edge_to_add.second) == _too_long_edges[v_no].end());
-          _too_long_edges[v_no].push_back(edge_to_add.second);
-          _too_long_edge_counter++;
-        }
-    }
 }
 
 template<class Gt, class Tds>
@@ -1543,8 +1465,7 @@ copy_triangulation(const Periodic_2_triangulation_2 &tr)
   _tds.clear();
   _gt = tr.geom_traits();
   _cover = tr._cover;
-  _edge_length_threshold = tr._edge_length_threshold;
-  _too_long_edge_counter = tr._too_long_edge_counter;
+
   if (tr.is_1_cover())
     {
       _tds = tr.tds();
@@ -1553,12 +1474,13 @@ copy_triangulation(const Periodic_2_triangulation_2 &tr)
     {
       copy_multiple_covering(tr);
     }
-  CGAL_assertion(_too_long_edge_counter == tr._too_long_edge_counter);
+
   CGAL_triangulation_expensive_postcondition(*this == tr);
 }
 
 template<class Gt, class Tds>
-void Periodic_2_triangulation_2<Gt, Tds>::swap(Periodic_2_triangulation_2 &tr)
+void Periodic_2_triangulation_2<Gt, Tds>::
+swap(Periodic_2_triangulation_2 &tr)
 {
   _tds.swap(tr._tds);
 
@@ -1567,10 +1489,6 @@ void Periodic_2_triangulation_2<Gt, Tds>::swap(Periodic_2_triangulation_2 &tr)
   tr._gt = t;
 
   std::swap(tr._cover, _cover);
-
-  std::swap(tr._edge_length_threshold, _edge_length_threshold);
-  std::swap(tr._too_long_edges, _too_long_edges);
-  std::swap(tr._too_long_edge_counter, _too_long_edge_counter);
 
   std::swap(tr._virtual_vertices, _virtual_vertices);
   std::swap(tr._virtual_vertices_reverse, _virtual_vertices_reverse);
@@ -1582,8 +1500,7 @@ void Periodic_2_triangulation_2<Gt, Tds>::clear()
   _tds.clear();
   _tds.set_dimension(-2);
 
-  _too_long_edges.clear();
-  _too_long_edge_counter = 0;
+  clear_covering_data();
 
   _virtual_vertices.clear();
   _virtual_vertices_reverse.clear();
@@ -1734,115 +1651,6 @@ bool Periodic_2_triangulation_2<Gt, Tds>::is_valid(bool verbose, int level) cons
         }
     }
 
-  // Check the too_long_edges administration
-  result &= is_valid_too_long_edges(verbose, level);
-
-  return result;
-}
-
-template<class Gt, class Tds>
-bool Periodic_2_triangulation_2<Gt, Tds>::is_valid_too_long_edges(bool verbose, int /*level*/) const
-{
-  bool result = true;
-
-  result &= is_1_cover() == _too_long_edges.empty();
-  CGAL_triangulation_assertion(result);
-  size_t too_long_edges = 0;
-  for (Too_long_edges_map_it it = _too_long_edges.begin(); it
-       != _too_long_edges.end(); ++it)
-    {
-      too_long_edges += it->second.size();
-    }
-  CGAL_triangulation_assertion(result);
-  if (_too_long_edge_counter != too_long_edges)
-    {
-      if (verbose) std::cout << "Too long edge counter is incorrect: " << _too_long_edge_counter << " != " << too_long_edges << std::endl;
-      result = false;
-    }
-  CGAL_triangulation_assertion(result);
-
-  /// Expensive check whether the right too long edges are in the list
-  if (is_1_cover())
-    {
-      for (Edge_iterator eit = edges_begin(); eit != edges_end(); ++eit)
-        {
-          Vertex_handle vh1 = eit->first->vertex(ccw(eit->second));
-          Vertex_handle vh2 = eit->first->vertex(cw(eit->second));
-          Point p1 = construct_point(vh1->point(), get_offset(eit->first, ccw(eit->second)));
-          Point p2 = construct_point(vh2->point(), get_offset(eit->first, cw(eit->second)));
-          result &= (!edge_is_too_long(p1, p2));
-        }
-      CGAL_triangulation_assertion(result);
-    }
-  else
-    {
-      too_long_edges = 0;
-      for (Edge_iterator eit = edges_begin(); eit != edges_end(); ++eit)
-        {
-          Vertex_handle vh1 = eit->first->vertex(ccw(eit->second));
-          Vertex_handle vh2 = eit->first->vertex(cw(eit->second));
-          Point p1 = construct_point(vh1->point(),
-                                     get_offset(eit->first, ccw(eit->second)));
-          Point p2 = construct_point(vh2->point(),
-                                     get_offset(eit->first, cw(eit->second)));
-
-          if (&*vh2 < &*vh1)
-            std::swap(vh1, vh2);
-          CGAL_triangulation_assertion(&*vh1 < &*vh2);
-
-          bool too_long = edge_is_too_long(p1, p2);
-          if (too_long != edge_is_too_long(p2, p1))
-            {
-              if (verbose) std::cout << "Long edge criterion not symmetric c(v1,v2) != c(v2,v1)" << std::endl;
-              result = false;
-            }
-          CGAL_triangulation_assertion(result);
-
-          Too_long_edges_map_it it = _too_long_edges.find(vh1);
-          if (it == _too_long_edges.end())
-            {
-              if (too_long)
-                {
-                  if (verbose) std::cout << "1. Too long edge not in the datastructure" << std::endl;
-                  result = false;
-                }
-              result &= !too_long;
-              CGAL_triangulation_assertion(result);
-            }
-          else
-            {
-              typename std::list<Vertex_handle>::const_iterator it2 = find(it->second.begin(), it->second.end(), vh2);
-              if (too_long)
-                {
-                  too_long_edges++;
-                  if (it2 == it->second.end())
-                    {
-                      if (verbose) std::cout << "2. Too long edge not in the datastructure" << std::endl;
-                      result = false;
-                    }
-                  CGAL_triangulation_assertion(result);
-                }
-              else
-                {
-                  if (it2 != it->second.end())
-                    {
-                      if (verbose) std::cout << "Edge is not too long, but contained in the datastructure" << std::endl;
-                      result = false;
-                    }
-                  CGAL_triangulation_assertion(result);
-                }
-            }
-        }
-
-      if (_too_long_edge_counter != too_long_edges)
-        {
-          if (verbose)
-            std::cout << "Counts do not match: " << _too_long_edge_counter << " != " << too_long_edges << std::endl;
-          result = false;
-        }
-      CGAL_triangulation_assertion(result);
-    }
-
   return result;
 }
 
@@ -1951,10 +1759,9 @@ void Periodic_2_triangulation_2<Gt, Tds>::flip(Face_handle f, int i)
             vh2_copy = v2s[i2 - 1];
 
           bool found = is_edge(vh1_copy, vh2_copy, fh, index);
-	  CGAL_USE(found);
           CGAL_assertion(found);
-	  if (found)
-	    flip_single_edge(fh, index);
+          if (found)
+            flip_single_edge(fh, index);
         }
     }
 
@@ -2067,8 +1874,9 @@ Periodic_2_triangulation_2<Gt, Tds>::remove_from_virtual_copies(Vertex_handle v)
 }
 
 template<class Gt, class Tds>
-typename Periodic_2_triangulation_2<Gt, Tds>::Vertex_handle Periodic_2_triangulation_2 <
-Gt, Tds >::insert_first(const Point& p)
+typename Periodic_2_triangulation_2<Gt, Tds>::Vertex_handle
+Periodic_2_triangulation_2<Gt, Tds >::
+insert_first(const Point& p)
 {
   CGAL_assertion(empty());
   // The empty triangulation has a single sheeted cover
@@ -2166,35 +1974,7 @@ Gt, Tds >::insert_first(const Point& p)
 
   _tds.set_dimension(2);
 
-  // create the base for too_long_edges;
-  CGAL_triangulation_assertion(_too_long_edges.empty() );
-  CGAL_triangulation_assertion(_too_long_edge_counter == 0);
-
-  // Insert all vertices as the first vertex in the _too_long_edges list
-  int k = 0;
-  std::list<Vertex_handle> empty_list;
-  for (Vertex_iterator vit = vertices_begin(); vit != vertices_end(); ++vit)
-    {
-      _too_long_edges[vit] = empty_list;
-      k++;
-    }
-
-  // Insert all edges as all edges are too long
-  _too_long_edge_counter = 0;
-  for (Edge_iterator eit = edges_begin(); eit != edges_end(); eit++)
-    {
-      Vertex_handle vh1 = eit->first->vertex(ccw(eit->second));
-      Vertex_handle vh2 = eit->first->vertex(cw(eit->second));
-      if (&*vh1 < &*vh2)
-        {
-          _too_long_edges[vh1].push_back(vh2);
-        }
-      else
-        {
-          _too_long_edges[vh2].push_back(vh1);
-        }
-      _too_long_edge_counter++;
-    }
+  update_cover_data_after_converting_to_9_sheeted_covering();
 
   return vir_vertices[0][0];
 }
@@ -2213,7 +1993,6 @@ Periodic_2_triangulation_2<Gt, Tds>::insert_in_edge(const Point& p, const Offset
     Vertex_handle vh)
 {
   // Insert in edge calls an insert_in_face and a flip.
-  // Therefore there is no need to update the too_long_edges bookkeeping directly.
 
   CGAL_triangulation_assertion(number_of_vertices() != 0);
   CGAL_triangulation_assertion((!is_1_cover()) || (o == Offset()));
@@ -2302,16 +2081,10 @@ Periodic_2_triangulation_2<Gt, Tds>::insert_in_face(const Point& p, const Offset
         }
     }
 
-  if (!is_1_cover())
+  if (!is_1_cover() && vh != Vertex_handle())
     {
-      // update the book-keeping in case of a periodic copy
-      if (vh != Vertex_handle())
-        {
-          _virtual_vertices[v] = Virtual_vertex(vh, o);
-          _virtual_vertices_reverse[vh].push_back(v);
-        }
-
-      insert_too_long_edges_in_star(v);
+       _virtual_vertices[v] = Virtual_vertex(vh, o);
+       _virtual_vertices_reverse[vh].push_back(v);
     }
 
   return v;
@@ -2471,15 +2244,9 @@ inline void Periodic_2_triangulation_2<Gt, Tds>::remove_degree_3(Vertex_handle v
       return;
     }
 
-  {
-    Virtual_vertex_map_it it = _virtual_vertices.find(v);
-    if (it != _virtual_vertices.end())
-      {
-        v = it->second.first;
-      }
-  }
-
-  remove_too_long_edges_in_star(v);
+  Virtual_vertex_map_it it = _virtual_vertices.find(v);
+  if (it != _virtual_vertices.end())
+    v = it->second.first;
 
   typename Virtual_vertex_reverse_map::iterator reverse_it =
     _virtual_vertices_reverse.find(v);
@@ -2593,8 +2360,6 @@ remove_degree_init(Vertex_handle v, const Offset &v_o,
 template<class Gt, class Tds>
 void Periodic_2_triangulation_2<Gt, Tds>::make_hole(Vertex_handle v, std::list<Edge> & hole)
 {
-  remove_too_long_edges_in_star(v);
-
   std::list<Face_handle> to_delete;
 
   Face_handle f, fn;
@@ -3201,8 +2966,8 @@ void Periodic_2_triangulation_2<Gt, Tds>::convert_to_1_sheeted_covering()
   _cover = make_array(1, 1);
   _virtual_vertices.clear();
   _virtual_vertices_reverse.clear();
-  _too_long_edge_counter = 0;
-  _too_long_edges.clear();
+
+  clear_covering_data();
 
   CGAL_triangulation_assertion(is_1_cover());
 }
@@ -3238,15 +3003,13 @@ void Periodic_2_triangulation_2<Gt, Tds>::convert_to_9_sheeted_covering()
       _virtual_vertices_reverse.insert(std::make_pair(*vit, copies));
     }
 
-  // Create 9 copies of each face from the respective copies of the
-  // vertices and write virtual_faces and virtual_faces_reverse.
+  // Create 9 copies of each face from the respective copies of the vertices
   typedef std::map<Face_handle, std::pair<Face_handle, Offset> >
   Virtual_face_map;
   typedef std::map<Face_handle, std::vector<Face_handle> >
   Virtual_face_reverse_map;
   typedef typename Virtual_face_reverse_map::const_iterator VCRMIT;
 
-  Virtual_face_map virtual_faces;
   Virtual_face_reverse_map virtual_faces_reverse;
 
   std::list<Face_handle> original_faces;
@@ -3283,7 +3046,6 @@ void Periodic_2_triangulation_2<Gt, Tds>::convert_to_9_sheeted_covering()
        != original_faces.end(); ++fit)
     {
       Face_handle c_cp;
-      Vertex_handle v0, v1, v2;
       std::vector<Face_handle> copies;
       Virtual_vertex_reverse_map_it vvrmit[3];
       Offset vvoff[3];
@@ -3455,54 +3217,11 @@ void Periodic_2_triangulation_2<Gt, Tds>::convert_to_9_sheeted_covering()
     }
 
   _cover = make_array(3, 3);
-
-  // Set up too long edges data structure
-  int i = 0;
-  for (Vertex_iterator vit = vertices_begin(); vit != vertices_end(); ++vit)
-    {
-      _too_long_edges[vit] = std::list<Vertex_handle>();
-      ++i;
-    }
-  _too_long_edge_counter = find_too_long_edges(_too_long_edges);
+  update_cover_data_after_converting_to_9_sheeted_covering();
 
   CGAL_triangulation_expensive_assertion(is_valid());
 
   CGAL_triangulation_assertion(!is_1_cover());
-}
-
-// iterate over all edges and store the ones that are longer than
-// edge_length_threshold in edges. Return the number of too long edges.
-template<class GT, class Tds>
-inline int Periodic_2_triangulation_2<GT, Tds>::find_too_long_edges(std::map <
-    Vertex_handle, std::list<Vertex_handle> > & edges) const
-{
-  Point p1, p2;
-  int counter = 0;
-  Vertex_handle v_no, vh;
-  for (Edge_iterator eit = edges_begin(); eit != edges_end(); eit++)
-    {
-      p1 = construct_point(eit->first->vertex(ccw(eit->second))->point(),
-                           get_offset(eit->first, ccw(eit->second)));
-      p2 = construct_point(eit->first->vertex(cw(eit->second))->point(),
-                           get_offset(eit->first, cw(eit->second)));
-      if (edge_is_too_long(p1, p2))
-        {
-          if (&*(eit->first->vertex(ccw(eit->second))) < &*(eit->first->vertex(cw(
-                eit->second))))
-            {
-              v_no = eit->first->vertex(ccw(eit->second));
-              vh = eit->first->vertex(cw(eit->second));
-            }
-          else
-            {
-              v_no = eit->first->vertex(cw(eit->second));
-              vh = eit->first->vertex(ccw(eit->second));
-            }
-          edges[v_no].push_back(vh);
-          counter++;
-        }
-    }
-  return counter;
 }
 
 /**
@@ -3946,146 +3665,6 @@ inline Orientation Periodic_2_triangulation_2<Gt, Tds>::orientation(
   return geom_traits().orientation_2_object()(p0, p1, p2, o0, o1, o2);
 }
 
-template<class Gt, class Tds>
-void Periodic_2_triangulation_2<Gt, Tds>::insert_too_long_edges_in_star(Vertex_handle vh)
-{
-  // Insert the too long edges in the star of vh
-  Face_handle f = vh->face();
-  Face_handle f_start = f;
-
-  do
-    {
-      int i = ccw(f->index(vh));
-
-      insert_too_long_edge(f, i);
-
-      // Proceed to the next face
-      f = f->neighbor(i);
-    }
-  while (f != f_start);
-}
-
-template<class Gt, class Tds>
-void Periodic_2_triangulation_2<Gt, Tds>::insert_too_long_edge(Face_handle f, int i)
-{
-  Vertex_handle vh1 = f->vertex(ccw(i));
-  Vertex_handle vh2 = f->vertex(cw(i));
-  CGAL_assertion(vh1 != Vertex_handle());
-  CGAL_assertion(vh2 != Vertex_handle());
-  Point p1 = construct_point(vh1->point(), get_offset(f, ccw(i)));
-  Point p2 = construct_point(vh2->point(), get_offset(f, cw(i)));
-
-  if (&*vh1 < &*vh2)
-    {
-      if (edge_is_too_long(p1, p2) &&
-          (find(_too_long_edges[vh1].begin(), _too_long_edges[vh1].end(), vh2) == _too_long_edges[vh1].end()))
-        {
-          _too_long_edges[vh1].push_back(vh2);
-          _too_long_edge_counter++;
-        }
-    }
-  else
-    {
-      CGAL_triangulation_precondition(&*vh2 < &*vh1);
-      if (edge_is_too_long(p2, p1) &&
-          (find(_too_long_edges[vh2].begin(), _too_long_edges[vh2].end(), vh1) == _too_long_edges[vh2].end()))
-        {
-          _too_long_edges[vh2].push_back(vh1);
-          _too_long_edge_counter++;
-        }
-    }
-}
-
-template<class Gt, class Tds>
-void Periodic_2_triangulation_2<Gt, Tds>::remove_too_long_edges_in_star(
-  Vertex_handle vh)
-{
-  if (is_1_cover())
-    return;
-
-  // Insert the too long edges in the star of vh
-  Face_handle f = vh->face();
-  Face_handle f_start = f;
-
-  do
-    {
-      int i = f->index(vh);
-      int i2 = ccw(i);
-      Vertex_handle vh2 = f->vertex(i2);
-
-      // Point corresponding to v
-      Point p1 = construct_point(vh->point(), get_offset(f, f->index(vh)));
-      // Point corresponding to the other vertex
-      Point p2 = construct_point(vh2->point(), get_offset(f, i2));
-
-      if (&*vh < &*vh2)
-        {
-          if (edge_is_too_long(p1, p2) &&
-              (find(_too_long_edges[vh].begin(), _too_long_edges[vh].end(), vh2) !=
-               _too_long_edges[vh].end()))
-            {
-              _too_long_edges[vh].remove(vh2);
-              _too_long_edge_counter--;
-            }
-        }
-      else
-        {
-          CGAL_triangulation_precondition(&*vh2 < &*vh);
-          if (edge_is_too_long(p1, p2) &&
-              (find(_too_long_edges[vh2].begin(), _too_long_edges[vh2].end(), vh) !=
-               _too_long_edges[vh2].end()))
-            {
-              _too_long_edges[vh2].remove(vh);
-              _too_long_edge_counter--;
-            }
-        }
-
-      // Proceed to the next face
-      f = f->neighbor(i2);
-    }
-  while (f != f_start);
-}
-
-template<class Gt, class Tds>
-void Periodic_2_triangulation_2<Gt, Tds>::remove_too_long_edge(Face_handle f,
-    int i)
-{
-  Vertex_handle vh1 = f->vertex(cw(i));
-  Vertex_handle vh2 = f->vertex(ccw(i));
-  Point p1 = construct_point(vh1->point(), get_offset(f, cw(i)));
-  Point p2 = construct_point(vh2->point(), get_offset(f, ccw(i)));
-  if (edge_is_too_long(p1, p2))
-    {
-      if (&*vh1 < &*vh2)
-        {
-          typename std::list<Vertex_handle>::iterator it = find(
-                _too_long_edges[vh1].begin(), _too_long_edges[vh1].end(), vh2);
-          if (it != _too_long_edges[vh1].end())
-            {
-              _too_long_edges[vh1].erase(it);
-              _too_long_edge_counter--;
-            }
-        }
-      else
-        {
-          typename std::list<Vertex_handle>::iterator it = find(
-                _too_long_edges[vh2].begin(), _too_long_edges[vh2].end(), vh1);
-          if (it != _too_long_edges[vh2].end())
-            {
-              _too_long_edges[vh2].erase(it);
-              _too_long_edge_counter--;
-            }
-        }
-    }
-}
-
-template<class Gt, class Tds>
-bool Periodic_2_triangulation_2<Gt, Tds>::edge_is_too_long(const Point &p1,
-    const Point &p2) const
-{
-  return squared_distance(p1, p2) > _edge_length_threshold;
-}
-
 template<class GT, class Tds>
 inline bool Periodic_2_triangulation_2<GT, Tds>::is_triangulation_in_1_sheet() const
 {
@@ -4423,18 +4002,6 @@ Periodic_2_triangulation_2<Gt, Tds>::load(std::istream& is)
   // read potential other information
   for (std::size_t j = 0 ; j < m; j++)
     is >> *(F[j]);
-
-  int i = 0;
-  for (Vertex_iterator vi = vertices_begin();
-       vi != vertices_end(); ++vi)
-    {
-      _too_long_edges[vi] = std::list<Vertex_handle>();
-      ++i;
-    }
-
-  _edge_length_threshold = FT(0.166) * (domain.xmax() - domain.xmin())
-                           * (domain.xmax() - domain.xmin());
-  _too_long_edge_counter = find_too_long_edges(_too_long_edges);
 
   CGAL_triangulation_expensive_assertion( is_valid() );
   return is;
