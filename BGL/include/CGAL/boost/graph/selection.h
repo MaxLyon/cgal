@@ -21,11 +21,13 @@
 #ifndef CGAL_BOOST_GRAPH_SELECTION_H
 #define CGAL_BOOST_GRAPH_SELECTION_H
 
+#include <CGAL/boost/graph/Face_filtered_graph.h>
+#include <CGAL/boost/graph/iterator.h>
+#include <CGAL/Dynamic_property_map.h>
+
 #include <boost/graph/graph_traits.hpp>
 #include <boost/foreach.hpp>
-#include <CGAL/boost/graph/iterator.h>
 #include <boost/unordered_set.hpp>
-
 
 namespace CGAL {
 
@@ -621,28 +623,95 @@ void expand_face_selection_for_removal(const FaceRange& faces_to_be_deleted,
   }
 }
 
-//todo: take non-manifold vertices into account.
-template<class PolygonMesh, class FaceRange>
-bool is_selection_a_topological_disk(const FaceRange& face_selection,
-                                           PolygonMesh& pm)
+// Note that the topological checks are purely combinatorial
+template <typename PolygonMesh>
+bool is_polygon_mesh_a_topological_disk(const PolygonMesh& pm)
 {
-  typedef typename boost::graph_traits<PolygonMesh>::vertex_descriptor vertex_descriptor;
-  typedef typename boost::graph_traits<PolygonMesh>::face_descriptor face_descriptor;
-  typedef typename boost::graph_traits<PolygonMesh>::halfedge_descriptor halfedge_descriptor;
-  typedef typename boost::graph_traits<PolygonMesh>::edge_descriptor edge_descriptor;
-  boost::unordered_set<vertex_descriptor> sel_vertices;
+  typedef typename boost::graph_traits<PolygonMesh>::vertex_descriptor    vertex_descriptor;
+  typedef typename boost::graph_traits<PolygonMesh>::halfedge_descriptor  halfedge_descriptor;
+  typedef typename boost::graph_traits<PolygonMesh>::edge_descriptor      edge_descriptor;
+  typedef typename boost::graph_traits<PolygonMesh>::face_descriptor      face_descriptor;
+
+  typedef boost::unordered_set<vertex_descriptor>                         Range_vertices;
+  typedef boost::unordered_set<halfedge_descriptor>                       Visited_halfedges;
+
+  Range_vertices sel_vertices;
   boost::unordered_set<edge_descriptor> sel_edges;
-  BOOST_FOREACH(face_descriptor f, face_selection)
+  std::size_t faces_n = 0;
+
+  Visited_halfedges visited_halfedges; // used to detect non-manifold vertices
+
+  BOOST_FOREACH(face_descriptor f, faces(pm))
   {
     BOOST_FOREACH(halfedge_descriptor h, halfedges_around_face(halfedge(f, pm), pm))
     {
-      sel_vertices.insert(target(h, pm));
-      sel_edges.insert(edge(h,pm));
+      vertex_descriptor v = target(h, pm);
+      std::pair<typename Range_vertices::iterator, bool> is_insert_successful = sel_vertices.insert(v);
+
+      if(is_insert_successful.second)
+      {
+        // When we first visit a vertex, we mark all its incident halfedges
+        std::size_t incident_null_faces_counter = 0;
+        BOOST_FOREACH(halfedge_descriptor h, halfedges_around_target(v, pm))
+        {
+          visited_halfedges.insert(h);
+          if(CGAL::is_border(h, pm))
+            ++incident_null_faces_counter;
+
+          // More than a single incident null face means that we are pinching the mesh at the vertex
+          if(incident_null_faces_counter > 1)
+            return false;
+        }
+      }
+      else
+      {
+        // If we have encountered this vertex before, all its incident halfedges must have been visited,
+        // otherwise it is non-manifold (more than one incident umbrella).
+        std::pair<typename Visited_halfedges::iterator, bool> is_h_insert_successful = visited_halfedges.insert(h);
+        if(is_h_insert_successful.second)
+          return false;
+      }
+
+      sel_edges.insert(edge(h, pm));
     }
+
+    ++faces_n;
   }
-  return (sel_vertices.size() - sel_edges.size() + face_selection.size() == 1); 
+
+  return (sel_vertices.size() - sel_edges.size() + faces_n == 1);
 }
-} //end of namespace CGAL
 
-#endif //CGAL_BOOST_GRAPH_SELECTION_H
+// To determine whether a vertex is manifold, we must (amongst other things)
+// loop around it to check that there is at most a single exterior (null) face.
+// When passing a range, that means we would need to check every time if the incident face
+// is in the input range, which is likely to be very expensive.
+// It's easier to make a filtered graph out of the range.
+//
+// @todo not sure about Face_filtered_graph 'is_selection_valid': what does it exactly check?
+// and does it check what it says it checks?
+template <typename PolygonMesh, typename FaceRange>
+bool is_face_range_a_topological_disk(const FaceRange& face_range,
+                                      PolygonMesh& pm)
+{
+  typedef typename boost::graph_traits<PolygonMesh>::face_descriptor           face_descriptor;
+  typedef CGAL::dynamic_face_property_t<std::size_t>                           Face_property_tag;
+  typedef typename boost::property_map<PolygonMesh, Face_property_tag>::type   Selection_map;
+  typedef CGAL::Face_filtered_graph<PolygonMesh>                               Filtered_graph;
 
+  Selection_map selected_faces = get(Face_property_tag(), pm);
+
+  BOOST_FOREACH(face_descriptor f, faces(pm))
+    put(selected_faces, f, 0);
+  BOOST_FOREACH(face_descriptor f, face_range)
+    put(selected_faces, f, 1);
+
+  Filtered_graph fg(pm, 1, selected_faces);
+  if(!fg.is_selection_valid())
+    return false;
+
+  return is_polygon_mesh_a_topological_disk(fg);
+}
+
+} // end of namespace CGAL
+
+#endif // CGAL_BOOST_GRAPH_SELECTION_H
