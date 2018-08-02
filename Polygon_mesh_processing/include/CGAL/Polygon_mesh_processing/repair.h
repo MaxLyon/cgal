@@ -747,7 +747,7 @@ std::size_t remove_degenerate_faces(TriangleMesh& tmesh,
       BOOST_FOREACH(halfedge_descriptor hd, halfedges_around_face(halfedge(fd, tmesh), tmesh))
       {
         vertex_descriptor vd = target(hd, tmesh);
-        if (degree(vd, tmesh) == 3)
+        if (degree(vd, tmesh) == 3 && !is_border(vd, tmesh))
         {
           vertices_to_remove.insert(vd);
           break;
@@ -759,8 +759,8 @@ std::size_t remove_degenerate_faces(TriangleMesh& tmesh,
     {
       halfedge_descriptor hd=halfedge(vd, tmesh);
       BOOST_FOREACH(halfedge_descriptor hd2, halfedges_around_target(hd, tmesh))
-        if (!is_border(hd2, tmesh))
-          degenerate_face_set.erase( face(hd2, tmesh) );
+        degenerate_face_set.erase( face(hd2, tmesh) );
+
       // remove the central vertex and check if the new face is degenerated
       hd=CGAL::Euler::remove_center_vertex(hd, tmesh);
       if (is_degenerate_triangle_face(face(hd, tmesh), tmesh, vpmap, traits))
