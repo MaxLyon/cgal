@@ -19,12 +19,10 @@
 //
 // Author(s)     : Sebastien Loriot, Maxime Gimeno
 
-
 #ifndef CGAL_POLYGON_MESH_PROCESSING_EXTRUDE_H
 #define CGAL_POLYGON_MESH_PROCESSING_EXTRUDE_H
 
 #include <CGAL/license/Polygon_mesh_processing/meshing_hole_filling.h>
-
 
 #include <CGAL/Polygon_mesh_processing/orientation.h>
 #include <CGAL/boost/graph/named_params_helper.h>
@@ -32,11 +30,17 @@
 #include <CGAL/boost/graph/copy_face_graph.h>
 #include <CGAL/Kernel_traits.h>
 #include <CGAL/boost/graph/Euler_operations.h>
+
 #include <vector>
+
+#ifdef DOXYGEN_RUNNING
+#define CGAL_PMP_NP_TEMPLATE_PARAMETERS NamedParameters
+#define CGAL_PMP_NP_CLASS NamedParameters
+#endif
 
 namespace CGAL {
 namespace Polygon_mesh_processing {
-namespace extrude_impl{
+namespace extrude_impl {
 
 template<typename BorderHalfedgesRange, class PolygonMesh>
 void create_strip(const BorderHalfedgesRange& input_halfedges,
