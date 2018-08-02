@@ -658,7 +658,7 @@ bool is_polygon_mesh_a_topological_disk(const PolygonMesh& pm)
           if(CGAL::is_border(h, pm))
             ++incident_null_faces_counter;
 
-          // More than a single incident null face means that we are pinching the mesh at the vertex
+          // More than a single incident null face means that the mesh is pinched at the vertex
           if(incident_null_faces_counter > 1)
             return false;
         }
@@ -683,7 +683,7 @@ bool is_polygon_mesh_a_topological_disk(const PolygonMesh& pm)
 
 // To determine whether a vertex is manifold, we must (amongst other things)
 // loop around it to check that there is at most a single exterior (null) face.
-// When passing a range, that means we would need to check every time if the incident face
+// When passing a range, that means we would need to check every time if an incident face
 // is in the input range, which is likely to be very expensive.
 // It's easier to make a filtered graph out of the range.
 //
