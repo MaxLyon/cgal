@@ -60,6 +60,8 @@ if ( CGAL_FOUND )
     create_single_source_cgal_program( "simple_parameterization.cpp" )
     create_single_source_cgal_program( "square_border_parameterizer.cpp" )
     
+    target_link_libraries(simple_parameterization boost_thread)
+
     if(SuiteSparse_FOUND)
       target_link_libraries(orbifold PRIVATE ${SuiteSparse_LIBRARIES})
     endif()

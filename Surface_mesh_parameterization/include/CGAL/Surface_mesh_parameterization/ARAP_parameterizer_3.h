@@ -67,7 +67,7 @@
 
 // -----------------------------------------------------------------------------
 #define CGAL_SMP_SOLVE_CUBIC_EQUATION
-//#define CGAL_SMP_SOLVE_EQUATIONS_WITH_GMP
+// #define CGAL_SMP_SOLVE_EQUATIONS_WITH_GMP
 // -----------------------------------------------------------------------------
 
 #if !defined(CGAL_SMP_SOLVE_CUBIC_EQUATION) && !defined(CGAL_SMP_SOLVE_EQUATIONS_WITH_GMP)
@@ -699,6 +699,7 @@ private:
         index_arg = i;
       }
     }
+
     return index_arg;
   }
 
@@ -728,6 +729,19 @@ private:
     return index_arg;
   }
 
+  template <typename VertexUVMap>
+  std::size_t compute_root_with_lowest_energy(const TriangleMesh& mesh,
+                                              face_descriptor fd,
+                                              const Cot_map ctmap,
+                                              const Local_points& lp,
+                                              const Lp_map lpmap,
+                                              const VertexUVMap uvmap,
+                                              const std::vector<NT>& roots) const
+  {
+    std::vector<NT> a_roots(roots.size(), 0);
+    return compute_root_with_lowest_energy(mesh, fd, ctmap, lp, lpmap, uvmap, a_roots, roots);
+  }
+
   // Compute the optimal values of the linear transformation matrices Lt.
   template <typename VertexUVMap>
   Error_code compute_optimal_Lt_matrices(const TriangleMesh& mesh,
@@ -741,6 +755,11 @@ private:
     Error_code status = OK;
 
     BOOST_FOREACH(face_descriptor fd, faces) {
+      std::cout << "LT MATRIX FOR FACE: "
+                << mesh.point(target(halfedge(fd, mesh) , mesh)) << std::endl
+                << mesh.point(target(next(halfedge(fd, mesh) , mesh), mesh)) << std::endl
+                << mesh.point(target(next(next(halfedge(fd, mesh), mesh), mesh), mesh)) << std::endl;
+
       // Compute the coefficients C1, C2, C3
       NT C1 = 0., C2 = 0., C3 = 0.;
 
@@ -752,22 +771,32 @@ private:
         // UV positions
         const Point_2& uvpi = get(uvmap, source(hd, mesh));
         const Point_2& uvpj = get(uvmap, target(hd, mesh));
+        std::cout << "uv points: " << uvpi << " ] [ " << uvpj << std::endl;
         NT diff_x = uvpi.x() - uvpj.x();
         NT diff_y = uvpi.y() - uvpj.y();
-//        CGAL_warning(diff_x == 0. && diff_y == 0.);
 
         // local positions (in the isometric 2D param)
         const Local_indices& li = get(lpmap, hd);
         const Point_2& ppi = lp[ li.first ];
         const Point_2& ppj = lp[ li.second ];
+        std::cout << "local positions: " << ppi << " ] [ " << ppj << std::endl;
         NT p_diff_x = ppi.x() - ppj.x();
         NT p_diff_y = ppi.y() - ppj.y();
         CGAL_precondition(p_diff_x != 0. || p_diff_y != 0.);
+
+        std::cout << "c: " << c << std::endl;
+        std::cout << "diff: " << " " << diff_x << " " << diff_y << std::endl;
+        std::cout << "pdiff: " << " " << p_diff_x << " " << p_diff_y << std::endl;
+        std::cout << "adding to C1: " << c * ( p_diff_x*p_diff_x + p_diff_y*p_diff_y ) << std::endl;
+        std::cout << "adding to C2: " << c * ( diff_x*p_diff_x + diff_y*p_diff_y ) << std::endl;
+        std::cout << "adding to C3: " << ( diff_x*p_diff_y - diff_y*p_diff_x ) << std::endl;
 
         C1 += c * ( p_diff_x*p_diff_x + p_diff_y*p_diff_y );
         C2 += c * ( diff_x*p_diff_x + diff_y*p_diff_y );
         C3 += c * ( diff_x*p_diff_y - diff_y*p_diff_x );
       }
+
+      std::cout << "Final: " << C1 << " " << C2 << " " << C3 << std::endl;
 
       // Compute a and b
       NT a = 0., b = 0.;
@@ -777,8 +806,8 @@ private:
         a = C2 / C1;
         b = C3 / C1;
       }
-      else if( std::abs(C1) < m_lambda_tolerance * m_lambda &&
-               std::abs(C2) < m_lambda_tolerance * m_lambda ) { // ARAP
+      else if( CGAL::abs(C1) < m_lambda_tolerance * m_lambda &&
+               CGAL::abs(C2) < m_lambda_tolerance * m_lambda ) { // ARAP
         // If lambda is large compared to C1 and C2, the cubic equation that
         // determines a and b can be simplified to a simple quadric equation
 
@@ -786,6 +815,49 @@ private:
         NT denom = 1. / CGAL::sqrt(C2*C2 + C3*C3);
         a = C2 * denom;
         b = C3 * denom;
+      }
+      else if(C2 == 0) {
+        a = 1;
+        b = 0;
+//        std::vector<NT> roots;
+//#ifdef CGAL_SMP_SOLVE_EQUATIONS_WITH_GMP
+//        solve_cubic_equation_with_AK(2 * m_lambda, 0., (C1 - 2. * m_lambda), -C3, roots);
+//#else // !CGAL_SMP_SOLVE_EQUATIONS_WITH_GMP
+//        solve_cubic_equation(2 * m_lambda, 0., (C1 - 2. * m_lambda), -C3, roots);
+//#endif
+
+//        std::cout << "roots: " << roots.size() << std::endl;
+//        std::size_t ind = compute_root_with_lowest_energy(mesh, fd, ctmap, lp, lpmap, uvmap, roots);
+
+//        a = 0;
+//        b = roots[ind];
+//        std::cout << "b: " << b << std::endl;
+
+//        NT min = 100000000000000;
+//        double mina, minb;
+//        for(int i = 0; i<10000; ++i)
+//        {
+//          for(int j = 0; j<10000; ++j)
+//          {
+//            double di = -10 + i * 0.001;
+//            double dj = -10 + j * 0.001;
+//            NT asd = compute_current_face_energy(mesh, fd, ctmap, lp, lpmap, uvmap, di, dj);
+////            std::cout << "didj: " << di << " " << dj << " " << asd << std::endl;
+//            if(asd < min)
+//            {
+//              mina = di;
+//              minb = dj;
+//              min = asd;
+//            }
+//          }
+//        }
+//        std::cout << "min: " << min << " at " << mina << " & " << minb << std::endl;
+//        a = mina;
+//        b = minb;
+
+        std::cout << "system: " << std::endl;
+        std::cout << C1 * a + 2 * m_lambda * a * (a*a + b*b - 1) - C2 << std::endl;
+        std::cout << C1 * b + 2 * m_lambda * b * (a*a + b*b - 1) - C3 << std::endl;
       }
       else { // general case
 #ifdef CGAL_SMP_SOLVE_CUBIC_EQUATION
@@ -1116,8 +1188,8 @@ private:
       BOOST_FOREACH(vertex_descriptor vd, vertices) {
         if(get(vpmap, vd)) {
           int index = get(vimap, vd);
-          CGAL_postcondition(std::abs(Xu[index] - Bu[index] ) < 1e-10);
-          CGAL_postcondition(std::abs(Xv[index] - Bv[index] ) < 1e-10);
+          CGAL_postcondition(CGAL::abs(Xu[index] - Bu[index] ) < 1e-10);
+          CGAL_postcondition(CGAL::abs(Xv[index] - Bv[index] ) < 1e-10);
         }
       }
     )
@@ -1356,7 +1428,7 @@ public:
       // energy based termination
       if(m_tolerance > 0.0 && ite <= m_iterations) // if tolerance <= 0, don't compute energy
       {  // also no need compute energy if this iteration is the last iteration
-        double energy_diff = std::abs((energy_last - energy_this) / energy_this);
+        NT energy_diff = CGAL::abs((energy_last - energy_this) / energy_this);
         if(energy_diff < m_tolerance) {
 #ifdef CGAL_PARAMETERIZATION_ARAP_VERBOSE
           std::cout << "Minimization process ended after: "
