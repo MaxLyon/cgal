@@ -104,7 +104,7 @@ join_face(typename boost::graph_traits<Graph>::halfedge_descriptor h,
  *
  * \returns `prev(opposite(h,g))`
  *
- * \pre The size of the faces incident to `h` and `opposite(h,g)` is at least 4.
+ * \pre The faces incident to `h` and `opposite(h,g)` have at least 4 vertices.
  *
  * \post `source(h, g)` is invalidated
  * \post `h` is invalidated 
@@ -195,8 +195,8 @@ split_vertex(typename boost::graph_traits<Graph>::halfedge_descriptor h1,
              typename boost::graph_traits<Graph>::halfedge_descriptor h2,
              Graph& g)
 {
-  CGAL_assertion(h1 != h2);
-  CGAL_assertion(target(h1, g) == target(h2, g));
+  CGAL_precondition(h1 != h2);
+  CGAL_precondition(target(h1, g) == target(h2, g));
 
   typename boost::graph_traits<Graph>::halfedge_descriptor 
     hnew = halfedge(add_edge(g), g),
@@ -251,8 +251,8 @@ split_edge(typename boost::graph_traits<Graph>::halfedge_descriptor h, Graph& g)
  *
  * \returns `prev(h,g)`
  *
- * \pre `out_degree(source(h,g)), g)) >= 3`
- * \pre `out_degree(target(h,g)) >= 3`
+ * \pre `out_degree(source(h,g), g) >= 3`
+ * \pre `out_degree(target(h,g), g) >= 3`
  *
  * \sa `split_face()`
  */
@@ -261,10 +261,11 @@ typename boost::graph_traits<Graph>::halfedge_descriptor
 join_face(typename boost::graph_traits<Graph>::halfedge_descriptor h,
           Graph& g)
 {
+  CGAL_precondition(out_degree(source(h, g), g) >= 3);
+  CGAL_precondition(out_degree(target(h, g), g) >= 3);
+
   return EulerImpl::join_face(h,g);
 }
-
-
 
 /**
  * splits the face incident to `h1` and `h2`.  Creates the opposite
@@ -293,7 +294,11 @@ typename boost::graph_traits<Graph>::halfedge_descriptor
 split_face(typename boost::graph_traits<Graph>::halfedge_descriptor h1,
            typename boost::graph_traits<Graph>::halfedge_descriptor h2,
            Graph& g)
-{ 
+{
+  CGAL_precondition(face(h1, g) == face(h2, g));
+  CGAL_precondition(h1 != h2);
+  CGAL_precondition(next(h1, g) != h2 && next(h2, g) != h1);
+
   typedef typename boost::graph_traits<Graph> Traits;
   typedef typename Traits::halfedge_descriptor halfedge_descriptor;
   typedef typename Traits::face_descriptor face_descriptor;
@@ -331,10 +336,11 @@ join_loop(typename boost::graph_traits<Graph>::halfedge_descriptor h1,
           typename boost::graph_traits<Graph>::halfedge_descriptor h2,
           Graph& g)
 {
+  CGAL_precondition( is_border(h1,g) || face(h1, g) != face(h2, g));
+
   typedef typename boost::graph_traits<Graph>              Traits;
   typedef typename Traits::halfedge_descriptor             halfedge_descriptor;
 
-  CGAL_precondition( is_border(h1,g) || face(h1, g) != face(h2, g));
   if (! is_border(h1,g))
     remove_face(face(h1, g), g);
   if (! is_border(h2,g))
@@ -404,17 +410,19 @@ split_loop(typename boost::graph_traits<Graph>::halfedge_descriptor h1,
            typename boost::graph_traits<Graph>::halfedge_descriptor h3,
            Graph& g)
 {
+
   typedef typename boost::graph_traits<Graph>              Traits;
   typedef typename Traits::halfedge_descriptor             halfedge_descriptor;
   typedef typename Traits::face_descriptor                 face_descriptor;
 
   halfedge_descriptor h = h1, i = h2, j = h3;
-   CGAL_precondition( h != i);
-        CGAL_precondition( h != j);
-        CGAL_precondition( i != j);
-        CGAL_precondition( target(h,g) == target(opposite(i,g),g));
-        CGAL_precondition( target(i,g) == target(opposite(j,g),g));
-        CGAL_precondition( target(j,g) == target(opposite(h,g),g));
+  CGAL_precondition(h != i);
+  CGAL_precondition(h != j);
+  CGAL_precondition(i != j);
+  CGAL_precondition(target(h,g) == target(opposite(i,g),g));
+  CGAL_precondition(target(i,g) == target(opposite(j,g),g));
+  CGAL_precondition(target(j,g) == target(opposite(h,g),g));
+
         // Create a copy of the triangle.
         halfedge_descriptor hnew = internal::copy(h,g);
         halfedge_descriptor inew = internal::copy(i,g);
@@ -508,11 +516,12 @@ template< typename Graph >
 void remove_face(typename boost::graph_traits<Graph>::halfedge_descriptor h,
                  Graph& g)
 {
+  CGAL_precondition(!is_border(h,g));
+
   typedef typename boost::graph_traits<Graph>            Traits;
   typedef typename Traits::halfedge_descriptor           halfedge_descriptor;
   typedef typename Traits::face_descriptor               face_descriptor;
 
-  CGAL_precondition(! is_border(h,g));
   face_descriptor f = face(h, g);
 
   halfedge_descriptor end = h;
@@ -549,8 +558,8 @@ void remove_face(typename boost::graph_traits<Graph>::halfedge_descriptor h,
 }
 
 /**
-* adds and returns the edge `e` connecting `s` and `t`
-* halfedge(e, g) has s as source and t as target
+* adds and returns the edge `e` connecting `s` and `t`.
+* The halfedge `halfedge(e, g)` has `s` as source and `t` as target.
 */
 template<typename Graph>
 typename boost::graph_traits<Graph>::edge_descriptor
@@ -585,16 +594,17 @@ add_face(const VertexRange& vr, Graph& g)
 
   std::vector<vertex_descriptor> vertices(vr.begin(), vr.end()); // quick and dirty copy
   unsigned int n = (unsigned int)vertices.size();
-  //check that every vertex is unique
-  std::sort(vertices.begin(), vertices.end());
-  if(std::adjacent_find(vertices.begin(), vertices.end()) != vertices.end()){
-    return boost::graph_traits<Graph>::null_face();
-  }
-  std::copy(vr.begin(), vr.end(), vertices.begin());
+
   // don't allow degenerated faces
-  if(n <= 2){
+  if(n <= 2)
     return boost::graph_traits<Graph>::null_face();
-  }
+
+  // check that every vertex is unique
+  std::sort(vertices.begin(), vertices.end());
+  if(std::adjacent_find(vertices.begin(), vertices.end()) != vertices.end())
+    return boost::graph_traits<Graph>::null_face();
+
+  std::copy(vr.begin(), vr.end(), vertices.begin());
 
   std::vector<halfedge_descriptor> halfedges(n);
   std::vector<bool>                is_new(n);
@@ -750,23 +760,24 @@ add_face(const VertexRange& vr, Graph& g)
   /**
    * removes the incident face of `h` and changes all halfedges incident to the face into border halfedges. See `remove_face(g,h)` for a more generalized variant.
    *
-   * \pre None of the incident edges of the face is a border edge.
+   * \pre None of the incident edges of the face `face(h, g)` is a border edge.
    */
 template< typename Graph>
 void make_hole(typename boost::graph_traits<Graph>::halfedge_descriptor h,
                Graph& g)
 {
+  CGAL_precondition(! is_border(h,g));
+
   typedef typename boost::graph_traits<Graph>            Traits;
   typedef typename Traits::face_descriptor               face_descriptor;
   typedef Halfedge_around_face_iterator<Graph>           halfedge_around_face_iterator;
 
-  CGAL_precondition(! is_border(h,g));
   face_descriptor fd = face(h, g);
   halfedge_around_face_iterator hafib, hafie;
   for(boost::tie(hafib, hafie) = halfedges_around_face(h, g); 
       hafib != hafie; 
       ++hafib){
-    CGAL_assertion(! is_border(opposite(*hafib,g),g));
+    CGAL_precondition(!is_border(opposite(*hafib, g), g));
     internal::set_border(*hafib, g);
   }
   remove_face(fd,g);  
@@ -780,6 +791,8 @@ template< typename Graph>
 void fill_hole(typename boost::graph_traits<Graph>::halfedge_descriptor h,
                Graph& g)
 {
+  CGAL_precondition(is_border(h, g));
+
   typedef typename boost::graph_traits<Graph>  Traits;
   typedef typename Traits::face_descriptor     face_descriptor;
   typedef typename Traits::halfedge_descriptor halfedge_descriptor;
@@ -790,7 +803,6 @@ void fill_hole(typename boost::graph_traits<Graph>::halfedge_descriptor h,
   }
   set_halfedge(f,h,g);
 }
-
 
 /** 
  * creates a barycentric triangulation of the face incident to `h`. Creates a new
@@ -819,6 +831,8 @@ typename boost::graph_traits<Graph>::halfedge_descriptor
 add_center_vertex(typename boost::graph_traits<Graph>::halfedge_descriptor h,
                   Graph& g) 
 {
+  CGAL_precondition(!is_border(h, g));
+
   typedef typename boost::graph_traits<Graph>              Traits;
   typedef typename Traits::vertex_descriptor               vertex_descriptor;
   typedef typename Traits::halfedge_descriptor             halfedge_descriptor;
@@ -878,6 +892,8 @@ typename boost::graph_traits<Graph>::halfedge_descriptor
 remove_center_vertex(typename boost::graph_traits<Graph>::halfedge_descriptor h,
                      Graph& g) 
 {
+  CGAL_precondition(!is_border(target(h, g), g));
+
   typedef typename boost::graph_traits<Graph>              Traits;
   typedef typename Traits::halfedge_descriptor             halfedge_descriptor;
 
@@ -928,6 +944,10 @@ add_vertex_and_face_to_border(typename boost::graph_traits<Graph>::halfedge_desc
                               typename boost::graph_traits<Graph>::halfedge_descriptor h2,
                               Graph& g)
 {
+  CGAL_precondition(is_border(h1,g));
+  CGAL_precondition(is_border(h2,g));
+  CGAL_precondition(h1 != h2);
+
   typename boost::graph_traits<Graph>::vertex_descriptor v = add_vertex(g);
   typename boost::graph_traits<Graph>::face_descriptor f = add_face(g);
   typename boost::graph_traits<Graph>::edge_descriptor e1 = add_edge(g);
@@ -985,8 +1005,8 @@ add_face_to_border(typename boost::graph_traits<Graph>::halfedge_descriptor h1,
                    typename boost::graph_traits<Graph>::halfedge_descriptor h2,
                    Graph& g)
 {
-  CGAL_precondition(is_border(h1,g) == true);
-  CGAL_precondition(is_border(h2,g) == true);
+  CGAL_precondition(is_border(h1,g));
+  CGAL_precondition(is_border(h2,g));
   CGAL_precondition(h1 != h2);
   CGAL_precondition(next(h1, g) != h2);
 
@@ -1023,6 +1043,8 @@ add_face_to_border(typename boost::graph_traits<Graph>::halfedge_descriptor h1,
   return newh;
 }
 
+template<typename Graph>
+bool does_satisfy_link_condition(typename boost::graph_traits<Graph>::edge_descriptor e, Graph& g);
 
 /**
  * collapses an edge in a graph.
@@ -1050,6 +1072,9 @@ typename boost::graph_traits<Graph>::vertex_descriptor
 collapse_edge(typename boost::graph_traits<Graph>::edge_descriptor e,
               Graph& g)
 {
+  CGAL_precondition(is_triangle_mesh(g));
+  CGAL_precondition(does_satisfy_link_condition(e, g));
+
   typedef boost::graph_traits< Graph > Traits;
   typedef typename Traits::vertex_descriptor          vertex_descriptor;
   typedef typename Traits::halfedge_descriptor            halfedge_descriptor;
@@ -1165,16 +1190,16 @@ collapse_edge(typename boost::graph_traits<Graph>::edge_descriptor e,
 template<typename Graph, typename EdgeIsConstrainedMap>
 typename boost::graph_traits<Graph>::vertex_descriptor
 collapse_edge(typename boost::graph_traits<Graph>::edge_descriptor v0v1,
-              Graph& g
-              , EdgeIsConstrainedMap Edge_is_constrained_map)
+              Graph& g,
+              EdgeIsConstrainedMap Edge_is_constrained_map)
 {
+  CGAL_precondition(!get(Edge_is_constrained_map,v0v1));
+
   typedef boost::graph_traits< Graph > Traits;
   typedef typename Traits::vertex_descriptor          vertex_descriptor;
   typedef typename Traits::halfedge_descriptor            halfedge_descriptor;
 
   halfedge_descriptor pq = halfedge(v0v1,g);
-  CGAL_assertion( !get(Edge_is_constrained_map,v0v1) );
-
   halfedge_descriptor qp = opposite(pq,g);
   halfedge_descriptor pt = opposite(prev(pq,g),g);
   halfedge_descriptor qb = opposite(prev(qp,g),g);
@@ -1293,6 +1318,9 @@ void
 flip_edge(typename boost::graph_traits<Graph>::halfedge_descriptor h,
           Graph& g)
 {
+  CGAL_precondition(is_triangle(h, g));
+  CGAL_precondition(is_triangle(opposite(h, g), g));
+
   typedef boost::graph_traits<Graph> Traits;
   typedef typename Traits::vertex_descriptor   vertex_descriptor;
   typedef typename Traits::halfedge_descriptor halfedge_descriptor;

@@ -40,22 +40,32 @@ void detect_degeneracies(const Surface_mesh& mesh)
 
 void fix_degeneracies(const char* fname)
 {
-  std::ifstream input(fname);
+  std::cout << "test " << fname << std::endl;
 
+  std::ifstream input(fname);
   Surface_mesh mesh;
   if (!input || !(input >> mesh) || mesh.is_empty()) {
     std::cerr << fname << " is not a valid off file.\n";
     exit(1);
   }
 
-  detect_degeneracies(mesh);
+  typedef boost::graph_traits<Surface_mesh>::face_descriptor  face_descriptor;
+  std::vector<face_descriptor> dfaces;
+  CGAL::Polygon_mesh_processing::degenerate_faces(mesh, std::back_inserter(dfaces));
+  std::cout << dfaces.size() << " degenerate faces in input" << std::endl;
 
-  CGAL::Polygon_mesh_processing::remove_degenerate_faces(mesh);
+
+  dfaces.clear();
+  CGAL::Polygon_mesh_processing::degenerate_faces(mesh, std::back_inserter(dfaces));
+  std::cout << dfaces.size() << " degenerate faces after cleaning" << std::endl;
+
   assert( CGAL::is_valid_polygon_mesh(mesh) );
 }
 
 int main()
 {
+//  fix_degeneracies("data_degeneracies/deg_on_border.off");
+  fix_degeneracies("data_degeneracies/existing_flip.off");
   fix_degeneracies("data_degeneracies/degtri_2dt_1edge_split_twice.off");
   fix_degeneracies("data_degeneracies/degtri_four-2.off");
   fix_degeneracies("data_degeneracies/degtri_four.off");
