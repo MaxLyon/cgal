@@ -928,6 +928,8 @@ std::size_t remove_degenerate_faces(TriangleMesh& tmesh,
                << vids[ target(next(next(halfedge(f, tmesh), tmesh), tmesh), tmesh) ] << "\n";
       }
 
+      // Null halfedges have been removed, thus the third point of a new, adjacent, degenerate face
+      // is on the line defined by the two previous points, and so forth.
       for (std::size_t pid=2; pid!=points.size(); ++pid)
       {
         CGAL_assertion(collinear(points[0], points[1], points[pid]));
@@ -961,7 +963,8 @@ std::size_t remove_degenerate_faces(TriangleMesh& tmesh,
           degenerate_face_set.erase(f);
         continue;
       }
-    // preliminary step to check if the operation is possible
+
+      // preliminary step to check if the operation is possible
       // sort the boundary points along the common supporting line
       //    we first need a reference point
       typedef Less_vertex_point<TriangleMesh, VertexPointMap, Traits> Less_vertex;
@@ -993,22 +996,26 @@ std::size_t remove_degenerate_faces(TriangleMesh& tmesh,
 
       // look for the outgoing border halfedge of the first extreme point
       BOOST_FOREACH(halfedge_descriptor hd, boundary_hedges)
+      {
         if ( get(vpmap, source(hd, tmesh)) == xtrm1 )
         {
           side_one.push_back(hd);
           break;
         }
+      }
       CGAL_assertion(side_one.size()==1);
 
       while( get(vpmap, target(side_one.back(), tmesh)) != xtrm2 )
       {
         vertex_descriptor prev_vertex = target(side_one.back(), tmesh);
         BOOST_FOREACH(halfedge_descriptor hd, boundary_hedges)
+        {
           if ( source(hd, tmesh) == prev_vertex )
           {
             side_one.push_back(hd);
             break;
           }
+        }
       }
 
       // look for the outgoing border halfedge of second extreme vertex
