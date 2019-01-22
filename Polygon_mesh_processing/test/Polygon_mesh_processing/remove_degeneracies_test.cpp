@@ -54,12 +54,14 @@ void fix_degeneracies(const char* fname)
   CGAL::Polygon_mesh_processing::degenerate_faces(mesh, std::back_inserter(dfaces));
   std::cout << dfaces.size() << " degenerate faces in input" << std::endl;
 
+  PMP::remove_degenerate_faces(mesh);
 
   dfaces.clear();
   CGAL::Polygon_mesh_processing::degenerate_faces(mesh, std::back_inserter(dfaces));
   std::cout << dfaces.size() << " degenerate faces after cleaning" << std::endl;
 
   assert( CGAL::is_valid_polygon_mesh(mesh) );
+  assert( dfaces.empty() );
 }
 
 int main()

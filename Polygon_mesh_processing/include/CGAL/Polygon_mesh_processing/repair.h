@@ -421,7 +421,7 @@ remove_a_border_edge(typename boost::graph_traits<TriangleMesh>::edge_descriptor
   CGAL_assertion( target(hk2,tm)==target(h,tm) );
 
   CGAL_assertion(is_valid_polygon_mesh(tm));
-  if (!is_selection_a_topological_disk(marked_faces, tm))
+  if (!is_face_range_a_topological_disk(marked_faces, tm))
   {
     #ifdef CGAL_PMP_REMOVE_DEGENERATE_FACES_DEBUG
     std::cout << "The region to be removed is not a topological disk, not handled for now.\n";
@@ -847,7 +847,7 @@ bool remove_degenerate_edges(const EdgeRange& edge_range,
         }
 
         // make sure the selection is a topological disk (otherwise we need another treatment)
-        if (!is_selection_a_topological_disk(marked_faces, tmesh))
+        if (!is_face_range_a_topological_disk(marked_faces, tmesh))
         {
           #ifdef CGAL_PMP_REMOVE_DEGENERATE_FACES_DEBUG
             std::cout << "Trying to handle a non-topological disk, do nothing\n";
