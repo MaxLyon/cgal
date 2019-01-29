@@ -137,6 +137,10 @@ public:
   {
     stored_polyhedra.resize(1);
     stored_polyhedra[0] = p;
+
+    // @tmp hack to initialize the pmap, even if 'detect_features()' is not called
+    get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
+
     this->add_primitives(stored_polyhedra[0]);
     this->build();
   }
@@ -170,7 +174,9 @@ public:
   {
     stored_polyhedra.resize(2);
     stored_polyhedra[0] = p;
+    get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
     stored_polyhedra[1] = bounding_p;
+    get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
     this->add_primitives(stored_polyhedra[0]);
     this->add_primitives(stored_polyhedra[1]);
     if(CGAL::is_empty(bounding_p)) {
@@ -189,6 +195,7 @@ public:
     stored_polyhedra.reserve(std::distance(begin, end));
     for (; begin != end; ++begin) {
       stored_polyhedra.push_back(**begin);
+      get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
       this->add_primitives(stored_polyhedra.back());
     }
     this->set_surface_only();
@@ -204,18 +211,24 @@ public:
   {
     stored_polyhedra.reserve(std::distance(begin, end)+1);
     if(begin != end) {
-      for (; begin != end; ++begin) {
+      for (; begin != end; ++begin)
+      {
         stored_polyhedra.push_back(**begin);
+        get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
         this->add_primitives(stored_polyhedra.back());
       }
+
       stored_polyhedra.push_back(bounding_polyhedron);
+      get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
       this->add_primitives(stored_polyhedra.back());
     }
+
     if(bounding_polyhedron.empty()) {
       this->set_surface_only();
     } else {
       this->add_primitives_to_bounding_tree(stored_polyhedra.back());
     }
+
     this->build();
   }
 
@@ -246,6 +259,7 @@ private:
     std::ifstream input(filename);
     stored_polyhedra.resize(1);
     input >> stored_polyhedra[0];
+    get(CGAL::face_patch_id_t<Patch_id>(), stored_polyhedra.back());
     this->add_primitives(stored_polyhedra[0]);
     this->build();
   }
